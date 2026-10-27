@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="行程守護">
+<meta name="application-name" content="行程守護">
+<meta name="theme-color" content="#0b0f14">
+<meta name="format-detection" content="telephone=no">
+<title>行程守護 · 離線旅遊助手</title>
+<link rel="manifest" id="manifest-link" href="data:application/manifest+json,{}">
+<link rel="apple-touch-icon" id="apple-icon" href="">
+<link rel="icon" id="fav-icon" href="">
+
+<!-- ========== PWA：Data URI Manifest + 動態產生 App 圖示 ========== -->
+<script>
+(function () {
+  function makeIcon(size) {
+    try {
+      var c = document.createElement('canvas'); c.width = c.height = size;
+      var x = c.getContext('2d');
+      var g = x.createLinearGradient(0, 0, size, size);
+      g.addColorStop(0, '#0e7490'); g.addColorStop(1, '#0b0f14');
+      x.fillStyle = g; x.fillRect(0, 0, size, size);
+      // 火山
+      x.fillStyle = '#fbbf24';
+      x.beginPath();
+      x.moveTo(size * .10, size * .80); x.lineTo(size * .38, size * .40);
+      x.lineTo(size * .46, size * .46); x.lineTo(size * .54, size * .46);
+      x.lineTo(size * .62, size * .40); x.lineTo(size * .90, size * .80);
+      x.closePath(); x.fill();
+      // 噴煙
+      x.fillStyle = 'rgba(255,255,255,.9)';
+      [[.50, .33, .07], [.58, .24, .085], [.68, .16, .07]].forEach(function (p) {
+        x.beginPath(); x.arc(size * p[0], size * p[1], size * p[2], 0, Math.PI * 2); x.fill();
+      });
+      // 時鐘
+      x.strokeStyle = '#22d3ee'; x.lineWidth = size * .035;
+      x.beginPath(); x.arc(size * .24, size * .24, size * .12, 0, Math.PI * 2); x.stroke();
+      x.beginPath(); x.moveTo(size * .24, size * .24); x.lineTo(size * .24, size * .16);
+      x.moveTo(size * .24, size * .24); x.lineTo(size * .30, size * .27); x.stroke();
+      return c.toDataURL('image/png');
+    } catch (e) { return ''; }
+  }
+  var i180 = makeIcon(180), i192 = makeIcon(192), i512 = makeIcon(512);
+  var base = location.href.split('#')[0].split('?')[0];
+  var manifest = {
+    name: '行程守護・離線旅遊助手',
+    short_name: '行程守護',
+    description: '自由行時間預算管理與離線記帳',
+    start_url: base,
+    scope: base.replace(/[^\/]*$/, ''),
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0b0f14',
+    theme_color: '#0b0f14',
+    icons: [
+      { src: i192, sizes: '192x192', type: 'image/png' },
+      { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+    ]
+  };
+  document.getElementById('manifest-link').href =
+    'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+  document.getElementById('apple-icon').href = i180;
+  document.getElementById('fav-icon').href = i192;
+})();
+</script>
+
+<!-- ========== Tailwind CDN（連線時載入，並把產生的 CSS 快取到 localStorage 供離線使用） ========== -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  if (typeof tailwind !== 'undefined') {
+    tailwind.config = { theme: { extend: {} } };
+    window.__TW_OFFLINE = false;
+  } else {
+    // 離線且 CDN 無法載入 → 套用上次快取的 Tailwind CSS
+    window.__TW_OFFLINE = true;
+    try {
+      var cached = localStorage.getItem('tg_tw_css');
+      if (cached) {
+        var st = document.createElement('style');
+        st.id = 'tw-cache'; st.textContent = cached;
+        document.head.appendChild(st);
+      }
+    } catch (e) {}
+  }
+</script>
+
+<!-- ========== App 自有樣式（不依賴 Tailwind，離線也保證可讀） ========== -->
+<style id="app-css">
+  :root { --bg:#0b0f14; --card:#141a22; --line:#263241; --hdr:220px; }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: #e5e7eb; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Microsoft JhengHei", sans-serif;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    overscroll-behavior-y: none; font-size: 16px; line-height: 1.45;
+    -webkit-text-size-adjust: 100%;
+  }
+  button { cursor: pointer; color: inherit; background: none; border: 0; padding: 0; }
+  input, select, textarea, button { font-family: inherit; }
+  input, select, textarea { font-size: 16px !important; }
+  .hidden { display: none !important; }
+  .tabnum { font-variant-numeric: tabular-nums; }
+  .safe-top { padding-top: max(env(safe-area-inset-top), 6px); }
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 6px); }
+  .press { transition: transform .08s ease, filter .08s; user-select: none; -webkit-user-select: none; }
+  .press:active { transform: scale(.94); filter: brightness(1.25); }
+
+  /* Header */
+  .hbtn { display:inline-flex; align-items:center; gap:4px; min-height:42px; padding:0 12px; border-radius:12px; background:#fbbf24; color:#111; font-weight:900; font-size:15px; }
+  .mini { min-height:34px; padding:0 10px; border-radius:10px; background:#1b2430; border:1px solid #334155; font-weight:800; font-size:14px; }
+  .net { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:800; padding:6px 10px; border-radius:999px; background:#111821; border:1px solid #263241; white-space:nowrap; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.on { background:#22c55e; box-shadow:0 0 8px #22c55e; }
+  .dot.off { background:#ef4444; box-shadow:0 0 8px #ef4444; animation: blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity:.35; } }
+  .banner { border-radius:14px; padding:10px 12px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; }
+
+  /* Slider */
+  .ticks { position:absolute; left:12px; right:12px; top:50%; height:0; pointer-events:none; }
+  .tick { position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px; border-radius:50%; background:#22d3ee; box-shadow:0 0 0 2px #0b0f14; }
+  input[type=range].tl { -webkit-appearance:none; appearance:none; width:100%; height:34px; background:transparent; position:relative; z-index:1; margin:0; }
+  input[type=range].tl::-webkit-slider-runnable-track { height:8px; border-radius:99px; background:linear-gradient(90deg,#1e3a5f,#334155); }
+  input[type=range].tl::-moz-range-track { height:8px; border-radius:99px; background:#334155; }
+  input[type=range].tl::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; margin-top:-10px; box-shadow:0 0 0 2px #fbbf24; }
+  input[type=range].tl::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; }
+
+  /* 卡片 */
+  .node-card { background:var(--card); border:1px solid #263241; border-radius:20px; overflow:hidden; scroll-margin-top:calc(var(--hdr) + 10px); transition: opacity .25s, box-shadow .25s; }
+  .node-card.is-past { opacity:.55; }
+  .node-card.is-now { box-shadow:0 0 0 2px #34d399, 0 0 24px rgba(52,211,153,.25); }
+  .node-card.is-focus { box-shadow:0 0 0 3px #fbbf24, 0 0 24px rgba(251,191,36,.3); }
+  .idx { width:34px; height:34px; flex-shrink:0; border-radius:10px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; }
+  .leg { background:#0f141b; border-bottom:1px solid #263241; padding:12px 14px; }
+  .leg-grid { display:grid; grid-template-columns:auto 1fr; gap:8px 10px; align-items:center; margin-top:8px; }
+  .lbl { font-size:13px; font-weight:900; color:#0b0f14; background:#7dd3fc; border-radius:6px; padding:2px 7px; justify-self:start; white-space:nowrap; }
+  .lbl.off { background:#fda4af; }
+  .stn { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; text-align:left; padding:6px 10px; border-radius:10px; background:#1b2430; border:1px solid #2d3b4d; font-weight:800; color:#fff; min-height:42px; font-size:16px; }
+  .stn .ja { color:#67e8f9; font-weight:700; font-size:14px; }
+  .stn .go { font-size:12px; color:#fbbf24; font-weight:800; }
+  .warn { margin-top:10px; background:#3b2a07; border:1px solid #92400e; color:#fde68a; border-radius:12px; padding:8px 10px; font-size:15px; font-weight:600; }
+  .note { margin-top:10px; background:#111821; border:1px dashed #334155; color:#cbd5e1; border-radius:12px; padding:8px 10px; font-size:15px; white-space:pre-wrap; }
+  .tbox { background:#0f141b; border:1px solid #263241; border-radius:14px; padding:6px 4px; text-align:center; }
+  .tbox .k { font-size:12px; color:#94a3b8; font-weight:800; }
+  .tbox .v { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.15; color:#fff; }
+  .tbox.stay { background:#fbbf24; border-color:#fbbf24; }
+  .tbox.stay .k { color:#422006; } .tbox.stay .v { color:#111; }
+  .tbox.dep .v { color:#fca5a5; }
+  .sbtn { min-height:48px; border-radius:12px; font-weight:900; font-size:17px; border:1px solid #334155; background:#1b2430; font-variant-numeric:tabular-nums; }
+  .sbtn.minus { color:#93c5fd; } .sbtn.plus { color:#fcd34d; } .sbtn.plus2 { color:#fb923c; }
+  .sbtn.edit { color:#e5e7eb; }
+  .live { display:inline-flex; align-items:center; gap:6px; font-weight:900; border-radius:999px; padding:6px 12px; font-size:15px; }
+  .live-now { background:#064e3b; color:#6ee7b7; }
+  .live-urgent { background:#7f1d1d; color:#fecaca; animation: blink 1.2s infinite; }
+  .live-next { background:#1e293b; color:#cbd5e1; }
+  .live-past { background:#1f2937; color:#9ca3af; }
+  .live-move { background:#0c4a6e; color:#bae6fd; }
+  .subt { display:inline-block; border-radius:10px; padding:4px 8px; background:#1b2430; border:1px solid #334155; font-weight:900; font-size:15px; color:#fbbf24; font-variant-numeric:tabular-nums; }
+  .subt small { display:block; color:#94a3b8; font-size:12px; font-weight:700; }
+
+  /* 記帳 */
+  .chip { padding:7px 12px; border-radius:999px; border:1px solid #334155; font-weight:800; font-size:15px; background:#111821; min-height:40px; }
+  .chip.on { background:var(--c); color:#0b0f14; border-color:var(--c); }
+  .inp { width:100%; background:#0b0f14; border:1px solid #334155; border-radius:12px; padding:10px 12px; color:#fff; min-height:48px; }
+  .inp:focus { outline:none; border-color:#22d3ee; box-shadow:0 0 0 2px rgba(34,211,238,.25); }
+  .exp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #1f2a37; }
+  .catdot { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .xbtn { width:38px; height:38px; border-radius:10px; background:#1f2937; color:#f87171; font-weight:900; font-size:18px; flex-shrink:0; }
+  .addbtn { min-height:48px; border-radius:12px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; padding:0 16px; white-space:nowrap; }
+
+  /* Bottom nav */
+  .navb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:800; color:#cbd5e1; min-height:58px; }
+  .navb .ic { font-size:22px; line-height:1; }
+  .navb.main .ic { width:48px; height:48px; border-radius:16px; background:#22d3ee; color:#0b0f14; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; margin-top:-18px; box-shadow:0 6px 18px rgba(34,211,238,.35); }
+
+  /* Modal / Sheet */
+  .modal { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; justify-content:flex-end; }
+  .modal .bd { position:absolute; inset:0; background:rgba(0,0,0,.7); }
+  .sheet { position:relative; background:#111821; border-top-left-radius:22px; border-top-right-radius:22px; max-height:92vh; overflow-y:auto; -webkit-overflow-scrolling:touch; animation: up .22s ease-out; border-top:1px solid #263241; }
+  .sheet.full { max-height:100vh; height:100%; border-radius:0; border:0; }
+  @keyframes up { from { transform:translateY(40px); opacity:.4; } }
+  .sheet-h { position:sticky; top:0; z-index:2; background:#111821; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #1f2a37; }
+  .sheet-h h2 { font-size:20px; font-weight:900; margin:0; }
+  .xclose { min-width:44px; height:44px; border-radius:12px; background:#1f2937; font-size:20px; font-weight:900; }
+  .fl { display:block; font-size:14px; font-weight:800; color:#94a3b8; margin:12px 0 6px; }
+  .btn { min-height:50px; border-radius:14px; font-weight:900; font-size:17px; padding:0 16px; }
+  .btn-pri { background:#22d3ee; color:#0b0f14; }
+  .btn-amb { background:#fbbf24; color:#111; }
+  .btn-sec { background:#1f2937; color:#e5e7eb; border:1px solid #334155; }
+  .btn-dan { background:#7f1d1d; color:#fecaca; }
+  .sec-title { font-size:15px; font-weight:900; color:#94a3b8; letter-spacing:.04em; margin:20px 0 10px; }
+  .bar { height:14px; border-radius:99px; background:#1f2937; overflow:hidden; }
+  .bar > div { height:100%; border-radius:99px; transition: width .4s; }
+
+  /* Toast */
+  #toast { position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom)); z-index:90; background:#f8fafc; color:#0b0f14; border-radius:14px; padding:12px 14px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+  #toast button { margin-left:auto; background:#0b0f14; color:#fbbf24; border-radius:10px; padding:8px 12px; font-weight:900; white-space:nowrap; }
+
+  /* 指路大卡 */
+  .dir { position:fixed; inset:0; z-index:80; display:flex; flex-direction:column; background:#000; color:#fff; }
+  .dir.bright { background:#facc15; color:#000; }
+  .dir-top { display:flex; justify-content:space-between; gap:10px; padding-left:14px; padding-right:14px; padding-bottom:8px; }
+  .dir-top button { min-height:48px; padding:0 16px; border-radius:14px; font-weight:900; font-size:17px; background:#262626; color:#fff; }
+  .dir.bright .dir-top button { background:#000; color:#facc15; }
+  .dir-body { flex:1; overflow-y:auto; padding:6px 20px 16px; display:flex; flex-direction:column; justify-content:center; }
+  .dir-label { font-size:18px; font-weight:800; opacity:.7; }
+  .dir-dest { font-size:clamp(44px, 13vw, 76px); font-weight:900; line-height:1.1; margin:4px 0; word-break:break-all; }
+  .dir-roma { font-size:20px; font-weight:700; opacity:.75; }
+  .dir-line { display:inline-block; margin-top:12px; font-size:22px; font-weight:900; padding:6px 12px; border-radius:12px; background:#1f2937; }
+  .dir.bright .dir-line { background:#000; color:#facc15; }
+  .dir-phrase { font-size:clamp(30px, 8.6vw, 48px); font-weight:900; line-height:1.3; margin-top:22px; padding:16px; border:4px solid currentColor; border-radius:18px; }
+  .dir-zh { font-size:18px; font-weight:700; margin-top:14px; opacity:.8; }
+  .dir-foot { font-size:24px; font-weight:900; margin-top:10px; }
+  .dir-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 12px; background:#111; }
+  .dir.bright .dir-tabs { background:#000; }
+  .dir-tabs button { min-height:52px; border-radius:12px; background:#262626; color:#fff; font-weight:900; font-size:15px; }
+  .dir-tabs button.on { background:#22d3ee; color:#000; }
+  .hide-sb::-webkit-scrollbar { display:none; }
+
+  /* Tailwind 備援：本 App 用到的工具類別。首次開啟就斷網、CDN 載不到時版面仍正常 */
+  .flex{display:flex}.grid{display:grid}.relative{position:relative}.fixed{position:fixed}.sticky{position:sticky}
+  .top-0{top:0}.bottom-0{bottom:0}.left-0{left:0}.right-0{right:0}.z-40{z-index:40}.z-50{z-index:50}
+  .flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.min-w-0{min-width:0}.w-full{width:100%}
+  .items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}
+  .gap-2{gap:.5rem}.gap-3{gap:.75rem}
+  .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.col-span-2{grid-column:span 2/span 2}
+  .space-y-4>:not([hidden])~:not([hidden]){margin-top:1rem}
+  .mx-4{margin-left:1rem;margin-right:1rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}
+  .px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}
+  .pt-1{padding-top:.25rem}.pt-2{padding-top:.5rem}.pt-3{padding-top:.75rem}
+  .pb-2{padding-bottom:.5rem}.pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-10{padding-bottom:2.5rem}
+  .text-xs{font-size:.75rem;line-height:1rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xl{font-size:1.25rem;line-height:1.75rem}
+  .font-bold{font-weight:700}.font-extrabold{font-weight:800}
+  .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .text-white{color:#fff}.text-slate-300{color:#cbd5e1}.text-slate-400{color:#94a3b8}.text-slate-500{color:#64748b}
+  .text-amber-300{color:#fcd34d}.text-cyan-300{color:#67e8f9}.text-sky-300{color:#7dd3fc}.text-emerald-300{color:#6ee7b7}.text-rose-300{color:#fda4af}
+  .text-xs.text-slate-400{color:#94a3b8}
+  details summary{cursor:pointer}
+
+  /* 每日分頁 */
+  .days { display:flex; gap:8px; overflow-x:auto; padding:8px 16px 2px; scroll-snap-type:x proximity; }
+  .dchip { position:relative; flex-shrink:0; min-width:78px; padding:6px 10px 7px; border-radius:14px; background:#111821; border:1px solid #263241; text-align:center; line-height:1.25; scroll-snap-align:start; }
+  .dchip b { display:block; font-size:16px; font-weight:900; color:#e5e7eb; }
+  .dchip span { display:block; font-size:12px; color:#94a3b8; font-weight:700; white-space:nowrap; }
+  .dchip.on { background:#22d3ee; border-color:#22d3ee; }
+  .dchip.on b, .dchip.on span { color:#0b0f14; }
+  .dchip.past b { color:#64748b; }
+  .dchip .today { position:absolute; top:-7px; right:-4px; background:#34d399; color:#052e1c; font-size:11px; font-weight:900; border-radius:99px; padding:1px 6px; }
+  .dchip.add { min-width:56px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#67e8f9; border-style:dashed; }
+  #preview-bar { margin:6px 16px 0; border-radius:12px; padding:7px 12px; background:#312e81; color:#e0e7ff; font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
+  #preview-bar.hidden { display:none !important; }
+  #preview-bar button { margin-left:auto; background:#e0e7ff; color:#312e81; border-radius:9px; padding:5px 10px; font-weight:900; white-space:nowrap; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#0b0f14; border:1px solid #263241; border-radius:12px; padding:4px; margin-top:12px; }
+  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:#94a3b8; }
+  .seg button.on { background:#22d3ee; color:#0b0f14; }
+  .dayhead { font-weight:900; color:#67e8f9; font-size:15px; margin:14px 0 6px; }
+</style>
+</head>
+
+<body>
+<!-- ========== Header ========== -->
+<header id="hdr" class="sticky top-0 z-40 safe-top" style="background:rgba(11,15,20,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #1f2a37">
+  <div class="px-4 pt-1 flex items-center gap-2">
+    <div class="flex-1 min-w-0">
+      <h1 id="trip-title" class="text-lg font-extrabold truncate" style="margin:0">行程守護</h1>
+      <div id="trip-date" class="text-xs text-slate-400"></div>
+    </div>
+    <div id="net" class="net"></div>
+    <button data-act="openAna" class="press hbtn">💰 <span id="hdr-total" class="tabnum">¥0</span></button>
+  </div>
+  <div id="days" class="days hide-sb"></div>
+  <div id="preview-bar" class="hidden"></div>
+  <div id="banner" class="mx-4 mt-2"></div>
+  <div class="px-4 pt-2 pb-2">
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-slate-400 font-bold">時間軸</span>
+      <span id="slider-label" class="font-extrabold text-amber-300 text-lg tabnum">--:--</span>
+      <span id="slider-target" class="text-slate-300 font-bold truncate flex-1 min-w-0"></span>
+      <button data-act="now" class="press mini">📍 現在</button>
+    </div>
+    <div class="relative" style="margin-top:2px">
+      <div id="ticks" class="ticks"></div>
+      <input id="slider" class="tl" type="range" min="360" max="1320" step="5" value="480" aria-label="時間軸">
+    </div>
+    <div class="flex justify-between text-slate-500 tabnum" style="font-size:11px;padding:0 4px">
+      <span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>22:00</span>
+    </div>
+  </div>
+</header>
+
+<!-- ========== 行程列表 ========== -->
+<main id="list" class="px-3 pt-3 space-y-4" style="padding-bottom:calc(120px + env(safe-area-inset-bottom))"></main>
+
+<!-- ========== Bottom Nav ========== -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 safe-bottom" style="background:rgba(13,18,24,.97);border-top:1px solid #1f2a37;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+  <div class="grid grid-cols-5">
+    <button data-act="top" class="press navb"><span class="ic">📋</span>行程</button>
+    <button data-act="openImport" class="press navb"><span class="ic">📥</span>匯入</button>
+    <button data-act="add" class="press navb main"><span class="ic">＋</span>新增</button>
+    <button data-act="openAna" class="press navb"><span class="ic">💰</span>支出</button>
+    <button data-act="openSet" class="press navb"><span class="ic">⚙️</span>設定</button>
+  </div>
+</nav>
+
+<!-- ========== 匯入 Modal ========== -->
+<div id="m-import" class="modal hidden">
+  <div class="bd" data-act="close" data-m="m-import"></div>
+  <div class="sheet safe-bottom">
+    <div class="sheet-h"><h2>📥 貼上行程筆記</h2><button class="press xclose" data-act="close" data-m="m-import">✕</button></div>
+    <div class="px-4 pb-4">
+      <p class="text-sm text-slate-400" style="margin:10px 0">每個行程以「時間」開頭的一行起始，其後各行可寫交通、停留、注意、備註。站名可用「中文 / 日文」或「中文 / Romaji」。也可直接貼上「匯出備份」的 JSON。</p>
+      <textarea id="imp-text" class="inp" rows="10" style="min-height:220px;line-height:1.5" placeholder="08:15 熊本站 / 熊本駅&#10;🚋 辛島町 → 熊本駅前（熊本市電 A系統）車程 15 分&#10;停留 35 分&#10;注意：後門上車前門下車&#10;備註：買便當"></textarea>
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <button class="press btn btn-sec" data-act="impSample">📄 填入範例</button>
+        <button class="press btn btn-pri" data-act="parse">🔍 解析預覽</button>
+      </div>
+      <details class="mt-3 text-sm text-slate-400">
+        <summary class="font-bold text-slate-300" style="padding:8px 0">支援的關鍵字</summary>
+        <div style="line-height:1.8">
+          ・時間：<b>08:30</b> 或 <b>08:30-10:00</b>（範圍自動算停留）<br>
+          ・停留：<b>停留 45 分</b>、<b>自由活動 1.5 小時</b><br>
+          ・交通：<b>🚌 A站 → B站（路線）40 分</b>，或「上車：」「下車：」「搭乘：」「車程：」<br>
+          ・注意 / ⚠️：下車注意事項　・備註 / 📝：一般筆記<br>
+          ・日文：、拼音：可補站名；常見九州地名會自動補日文
+        </div>
+      </details>
+      <div id="imp-preview" class="mt-3"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 新增 / 編輯 Modal ========== -->
+<div id="m-edit" class="modal hidden">
+  <div class="bd" data-act="close" data-m="m-edit"></div>
+  <div class="sheet safe-bottom">
+    <div class="sheet-h"><h2 id="edit-title">新增行程</h2><button class="press xclose" data-act="close" data-m="m-edit">✕</button></div>
+    <div class="px-4 pb-6">
+      <input type="hidden" id="f-id">
+      <div class="sec-title" style="margin-top:12px">📍 地點</div>
+      <label class="fl">名稱（中文）</label><input id="f-name" class="inp" placeholder="例：草千里">
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="fl">日文</label><input id="f-nameJa" class="inp" placeholder="草千里"></div>
+        <div><label class="fl">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
+      </div>
+      <div class="sec-title">⏱ 時間預算</div>
+      <label class="fl">哪一天</label><select id="f-day" class="inp"></select>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="fl">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
+        <div><label class="fl">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
+      </div>
+      <div id="f-chain-wrap" class="mt-3 flex items-center gap-2" style="font-weight:700">
+        <input id="f-chain" type="checkbox" checked style="width:22px;height:22px">
+        <label for="f-chain">時間變動時，後續行程連動順延</label>
+      </div>
+      <div class="sec-title">🚃 前往此地的交通（可留空）</div>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="fl">上車站（中）</label><input id="f-tFrom" class="inp"></div>
+        <div><label class="fl">上車站（日）</label><input id="f-tFromJa" class="inp"></div>
+        <div><label class="fl">路線/車種（中）</label><input id="f-tLine" class="inp"></div>
+        <div><label class="fl">路線/車種（日）</label><input id="f-tLineJa" class="inp"></div>
+        <div><label class="fl">下車站（中）</label><input id="f-tTo" class="inp"></div>
+        <div><label class="fl">下車站（日）</label><input id="f-tToJa" class="inp"></div>
+      </div>
+      <label class="fl">車程（分鐘）</label><input id="f-tMins" type="number" inputmode="numeric" min="0" class="inp">
+      <label class="fl">下車注意事項</label><textarea id="f-tNote" class="inp" rows="2"></textarea>
+      <label class="fl">備註</label><textarea id="f-note" class="inp" rows="3"></textarea>
+      <div class="grid grid-cols-3 gap-2 mt-5">
+        <button id="f-del" class="press btn btn-dan" data-act="delNode">刪除</button>
+        <button class="press btn btn-pri col-span-2" data-act="saveNode">💾 儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 支出分析 Modal（全螢幕） ========== -->
+<div id="m-ana" class="modal hidden">
+  <div class="sheet full safe-top safe-bottom">
+    <div class="sheet-h"><h2 id="ana-title">💰 當日支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana">✕</button></div>
+    <div id="ana-body" class="px-4 pb-10"></div>
+  </div>
+</div>
+
+<!-- ========== 設定 Modal ========== -->
+<div id="m-set" class="modal hidden">
+  <div class="bd" data-act="close" data-m="m-set"></div>
+  <div class="sheet safe-bottom">
+    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set">✕</button></div>
+    <div class="px-4 pb-8">
+      <label class="fl">行程標題</label><input id="s-title" class="inp">
+      <label class="fl">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="fl">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
+        <div><label class="fl">當日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
+      </div>
+      <label class="fl">±分鐘按鈕的順延方式</label>
+      <select id="s-mode" class="inp">
+        <option value="all">本站抵達起，本站與後續全部平移</option>
+        <option value="stay">延長／縮短本站停留，後續平移</option>
+      </select>
+
+      <div class="sec-title">📲 安裝成 App</div>
+      <button id="s-install" class="press btn btn-amb w-full hidden" data-act="install" style="width:100%">⬇️ 安裝到主畫面</button>
+      <div class="text-sm text-slate-300" style="line-height:1.7;background:#0b0f14;border:1px solid #263241;border-radius:12px;padding:10px 12px;margin-top:8px">
+        <b>iPhone：</b>用 Safari 開啟 → 分享 ⬆️ →「加入主畫面」。<br>
+        <b>Android：</b>用 Chrome 開啟 → 右上 ⋮ →「安裝應用程式／加到主畫面」。<br>
+        出發前請<b>在有網路時至少開啟一次</b>，樣式與資料會存入手機，之後斷網也能使用。
+        <div id="s-sw" class="text-xs text-slate-500" style="margin-top:6px"></div>
+      </div>
+
+      <div class="sec-title">💾 資料備份</div>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="press btn btn-sec" data-act="export">⬇️ 匯出 JSON</button>
+        <button class="press btn btn-sec" data-act="copyBackup">📋 複製備份</button>
+        <button class="press btn btn-sec" data-act="importFile">📂 讀取備份檔</button>
+        <button class="press btn btn-sec" data-act="dlSW">⚙️ 下載 sw.js</button>
+      </div>
+      <input id="file-in" type="file" accept="application/json,.json,.txt" class="hidden">
+
+      <div class="sec-title">🧹 重設</div>
+      <div class="grid grid-cols-2 gap-2">
+        <button class="press btn btn-sec" data-act="resetDemo">載入示範資料</button>
+        <button class="press btn btn-dan" data-act="clearAll">清空全部</button>
+      </div>
+      <p class="text-xs text-slate-500" style="margin-top:12px;line-height:1.6">示範資料中的班次、車程與金額僅供格式參考，實際請以 JR 九州、產交巴士等業者當日公告為準。所有資料只存在本機瀏覽器的 localStorage，不會上傳。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 離線指路大卡 ========== -->
+<div id="dir" class="dir hidden">
+  <div class="dir-top safe-top">
+    <button class="press" data-act="dirTheme" id="dir-theme">☀️ 強光模式</button>
+    <button class="press" data-act="dirClose">✕ 關閉</button>
+  </div>
+  <div id="dir-body" class="dir-body"></div>
+  <div id="dir-tabs" class="dir-tabs safe-bottom"></div>
+</div>
+
+<!-- ========== 確認對話框（取代瀏覽器 confirm） ========== -->
+<div id="m-ask" class="modal hidden" style="z-index:75;justify-content:center;padding:0 16px">
+  <div class="bd" data-act="askNo"></div>
+  <div class="sheet" style="border-radius:20px;border:1px solid #263241;padding:20px 16px 16px">
+    <div id="ask-msg" style="font-size:18px;font-weight:800;color:#fff;line-height:1.5;white-space:pre-wrap"></div>
+    <div class="grid grid-cols-2 gap-2" style="margin-top:18px">
+      <button class="press btn btn-sec" data-act="askNo">取消</button>
+      <button id="ask-ok" class="press btn btn-amb" data-act="askOk">確定</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<!-- Tailwind 條件式 class 預先曝光，確保被產生並快取（離線用） -->
+<div class="hidden text-amber-300 text-emerald-300 text-rose-300 text-sky-300 text-cyan-300 bg-emerald-950 bg-rose-950 bg-slate-800 border-emerald-700 border-rose-700 border-slate-700 col-span-2 grid-cols-3 grid-cols-2 w-full"></div>
+
+<!-- ========== Service Worker 原始碼（放到與 HTML 同目錄命名為 sw.js 即啟用） ========== -->
+<script type="text/plain" id="sw-src">
+// 行程守護 Service Worker：快取優先、背景更新
+const CACHE = 'trip-guard-v1';
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'https://cdn.tailwindcss.com']).catch(() => {})));
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    caches.match(e.request, { ignoreSearch: true }).then(hit => {
+      const net = fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        return res;
+      }).catch(() => hit);
+      return hit || net;
+    })
+  );
+});
+</script>
+
+<!-- ========== 主程式 ========== -->
+<script>
+'use strict';
+
+/* ---------- 常數與工具 ---------- */
+const LS_KEY = 'tg_state_v1';
+const TW_KEY = 'tg_tw_css';
+const CATS = [
+  { k: 'food',      n: '餐飲', i: '🍜', c: '#f59e0b' },
+  { k: 'transport', n: '交通', i: '🚌', c: '#22d3ee' },
+  { k: 'ticket',    n: '門票', i: '🎫', c: '#a78bfa' },
+  { k: 'shopping',  n: '購物', i: '🛍️', c: '#f472b6' },
+  { k: 'lodging',   n: '住宿', i: '🏨', c: '#34d399' },
+  { k: 'misc',      n: '雜支', i: '📦', c: '#94a3b8' }
+];
+const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
+
+const $ = s => document.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-5);
+const pad = n => String(n).padStart(2, '0');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const yen = n => '¥' + Math.round(n || 0).toLocaleString('ja-JP');
+const twd = n => 'NT$' + Math.round((n || 0) * S.settings.rate).toLocaleString('zh-TW');
+const toMin = s => { const m = String(s || '').match(/(\d{1,2})[:：](\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : null; };
+const fmtPlain = min => { const m = ((Math.round(min) % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); };
+const fmt = min => (min == null || isNaN(min)) ? '--:--' : fmtPlain(min) + (min >= 1440 ? '⁺¹' : '');
+const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+const durTxt = m => m >= 60 ? (Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : '')) : m + ' 分';
+const hasKana = s => /[\u3040-\u30ff]/.test(s || '');
+const isLatin = s => /^[A-Za-z0-9āīūēōĀĪŪĒŌâîûêôÂÎÛÊÔ\s\-'.·]+$/.test((s || '').trim());
+const parseAmt = s => { const v = Number(String(s || '').replace(/[^\d.]/g, '')); return isFinite(v) ? v : 0; };
+
+/* ---------- 九州常見地名 中→日 / Romaji 小辭典 ---------- */
+const DICT = [
+  ['熊本櫻町巴士總站', '熊本桜町バスターミナル', 'Kumamoto Sakuramachi Basu Tāminaru'],
+  ['熊本櫻町', '熊本桜町バスターミナル', 'Kumamoto Sakuramachi'],
+  ['櫻町', '桜町', 'Sakuramachi'],
+  ['熊本站前', '熊本駅前', 'Kumamoto-ekimae'],
+  ['熊本站', '熊本駅', 'Kumamoto-eki'],
+  ['熊本機場', '阿蘇くまもと空港', 'Aso Kumamoto Kūkō'],
+  ['熊本城', '熊本城', 'Kumamoto-jō'],
+  ['水前寺', '水前寺成趣園', 'Suizenji Jōjuen'],
+  ['通町筋', '通町筋', 'Tōrichō-suji'],
+  ['辛島町', '辛島町', 'Karashimachō'],
+  ['阿蘇站前', '阿蘇駅前', 'Aso-ekimae'],
+  ['阿蘇站', '阿蘇駅', 'Aso-eki'],
+  ['阿蘇山上巴士總站', '阿蘇山上ターミナル', 'Asosanjō Tāminaru'],
+  ['阿蘇山上', '阿蘇山上ターミナル', 'Asosanjō Tāminaru'],
+  ['阿蘇火山口', '阿蘇中岳火口', 'Aso Nakadake Kakō'],
+  ['中岳火口', '阿蘇中岳火口', 'Nakadake Kakō'],
+  ['火山口', '阿蘇中岳火口', 'Nakadake Kakō'],
+  ['草千里', '草千里', 'Kusasenri'],
+  ['米塚', '米塚', 'Komezuka'],
+  ['大觀峰', '大観峰', 'Daikanbō'],
+  ['內牧溫泉', '内牧温泉', 'Uchinomaki Onsen'],
+  ['黑川溫泉', '黒川温泉', 'Kurokawa Onsen'],
+  ['鍋之瀧', '鍋ヶ滝', 'Nabegataki'],
+  ['南阿蘇', '南阿蘇', 'Minami-Aso'],
+  ['高森', '高森', 'Takamori'],
+  ['立野', '立野', 'Tateno'],
+  ['肥後大津', '肥後大津', 'Higo-Ōzu'],
+  ['宮地', '宮地', 'Miyaji'],
+  ['阿蘇神社', '阿蘇神社', 'Aso Jinja'],
+  ['上色見熊野座神社', '上色見熊野座神社', 'Kamishikimi Kumanoimasu Jinja'],
+  ['由布院', '由布院', 'Yufuin'], ['湯布院', '湯布院', 'Yufuin'],
+  ['別府', '別府', 'Beppu'],
+  ['博多站', '博多駅', 'Hakata-eki'], ['博多', '博多', 'Hakata'],
+  ['天神', '天神', 'Tenjin'], ['太宰府', '太宰府', 'Dazaifu'],
+  ['鹿兒島中央', '鹿児島中央駅', 'Kagoshima-Chūō-eki'],
+  ['長崎站', '長崎駅', 'Nagasaki-eki'],
+  ['阿蘇', '阿蘇', 'Aso'], ['熊本', '熊本', 'Kumamoto']
+];
+function dictLookup(name) {
+  const n = (name || '').replace(/[（(].*?[)）]/g, '').trim();
+  for (const [zh, ja, ro] of DICT) if (n === zh) return { ja, ro };
+  for (const [zh, ja, ro] of DICT) if (n.includes(zh)) return { ja, ro };
+  return null;
+}
+function autoJa(name) {
+  const n = (name || '').trim();
+  for (const [zh, ja] of DICT) if (n === zh) return ja;
+  if (hasKana(n) || /駅/.test(n)) return n;
+  return n.replace(/站前$/, '駅前').replace(/站$/, '駅');
+}
+
+/* ---------- 狀態 ---------- */
+let S = null;
+const openExp = new Set();
+const expCat = {};
+let focusId = null;
+let curDay = 1;          // 目前顯示第幾天
+let anaScope = 'day';    // 支出分析範圍：day / all
+let lastTodayStr = '';   // 偵測跨日自動切換
+
+function normNode(o) {
+  const n = Object.assign({
+    id: uid(), day: 1, name: '', nameJa: '', romaji: '', arrive: 540, stay: 30,
+    tFrom: '', tFromJa: '', tLine: '', tLineJa: '', tTo: '', tToJa: '', tMins: 0, tNote: '',
+    note: '', expenses: []
+  }, o || {});
+  n.day = Math.max(1, Math.min(99, Math.round(Number(n.day) || 1)));
+  n.arrive = Math.max(0, Math.round(Number(n.arrive) || 0));
+  n.stay = Math.max(0, Math.round(Number(n.stay) || 0));
+  n.tMins = Math.max(0, Math.round(Number(n.tMins) || 0));
+  n.expenses = (Array.isArray(n.expenses) ? n.expenses : []).map(e => ({
+    id: e.id || uid(), item: String(e.item || ''), cat: CAT[e.cat] ? e.cat : 'misc',
+    amt: Math.max(0, Number(e.amt) || 0), ts: Number(e.ts) || Date.now()
+  }));
+  return n;
+}
+function normState(o) {
+  const s = {
+    v: 1,
+    trip: Object.assign({ title: '我的自由行', date: todayStr(), days: 1 }, (o && o.trip) || {}),
+    settings: Object.assign({ rate: 0.215, budget: 20000, shiftMode: 'all' }, (o && o.settings) || {}),
+    nodes: ((o && Array.isArray(o.nodes)) ? o.nodes : []).map(normNode)
+  };
+  s.trip.days = Math.max(1, Math.round(Number(s.trip.days) || 1));
+  s.nodes.sort((a, b) => a.day - b.day || a.arrive - b.arrive);
+  s.settings.rate = Number(s.settings.rate) > 0 ? Number(s.settings.rate) : 0.215;
+  s.settings.budget = Number(s.settings.budget) >= 0 ? Number(s.settings.budget) : 20000;
+  if (!['all', 'stay'].includes(s.settings.shiftMode)) s.settings.shiftMode = 'all';
+  return s;
+}
+
+function demoState() {
+  const e = (item, cat, amt) => ({ id: uid(), item, cat, amt, ts: Date.now() });
+  return normState({
+    trip: { title: '熊本・阿蘇 二日遊', date: todayStr(), days: 2 },
+    settings: { rate: 0.215, budget: 20000, shiftMode: 'all' },
+    nodes: [
+      { name: '辛島町（飯店出發）', nameJa: '辛島町', romaji: 'Karashimachō', arrive: 470, stay: 10,
+        note: '退房、寄放行李。確認 IC 卡餘額，山區巴士多半只收現金或 IC 卡。',
+        expenses: [e('便利商店早餐', 'food', 580)] },
+      { name: '熊本站', nameJa: '熊本駅', romaji: 'Kumamoto-eki', arrive: 495, stay: 35,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 A系統（往熊本站前）', tLineJa: '熊本市電 A系統（熊本駅前 行き）',
+        tTo: '熊本站前', tToJa: '熊本駅前', tMins: 15,
+        tNote: '後門上車、前門下車付款；下車後步行約 5 分鐘到 JR 熊本站。',
+        note: '買鐵路便當、到綠色窗口確認指定席。',
+        expenses: [e('市電車資', 'transport', 180), e('鐵路便當', 'food', 1350)] },
+      { name: '阿蘇站', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: 610, stay: 20,
+        tFrom: '熊本站', tFromJa: '熊本駅', tLine: 'JR 特急 阿蘇男孩號', tLineJa: 'JR 特急 あそぼーい！',
+        tTo: '阿蘇站', tToJa: '阿蘇駅', tMins: 80,
+        tNote: '全車指定席需事先劃位；行駛日與時刻以 JR 九州公告為準。',
+        note: '站前觀光案內所可詢問當日火口開放狀況。',
+        expenses: [e('特急指定席', 'transport', 2850)] },
+      { name: '阿蘇火山口（阿蘇山上）', nameJa: '阿蘇山上ターミナル', romaji: 'Asosanjō Tāminaru', arrive: 670, stay: 60,
+        tFrom: '阿蘇站前', tFromJa: '阿蘇駅前', tLine: '產交巴士 阿蘇火山線', tLineJa: '産交バス 阿蘇火山線',
+        tTo: '阿蘇山上巴士總站', tToJa: '阿蘇山上ターミナル', tMins: 35,
+        tNote: '山上收訊差！先截圖回程班次。火口是否開放依當日火山氣體濃度決定。',
+        note: '山上風大溫度低，記得帶外套。',
+        expenses: [e('火山線巴士', 'transport', 1200), e('火口接駁', 'ticket', 600)] },
+      { name: '草千里', nameJa: '草千里', romaji: 'Kusasenri', arrive: 740, stay: 90,
+        tFrom: '阿蘇山上巴士總站', tFromJa: '阿蘇山上ターミナル', tLine: '產交巴士 阿蘇火山線（下山）', tLineJa: '産交バス 阿蘇火山線（下り）',
+        tTo: '草千里', tToJa: '草千里', tMins: 10,
+        tNote: '在「草千里」站下車，對面就是展望台與餐廳。',
+        note: '午餐赤牛丼，可體驗騎馬（約 10 分鐘）。',
+        expenses: [e('赤牛丼', 'food', 2200), e('騎馬體驗', 'ticket', 2000)] },
+      { name: '阿蘇站（回程）', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: 860, stay: 30,
+        tFrom: '草千里', tFromJa: '草千里', tLine: '產交巴士 阿蘇火山線（往阿蘇站）', tLineJa: '産交バス 阿蘇火山線（阿蘇駅 行き）',
+        tTo: '阿蘇站前', tToJa: '阿蘇駅前', tMins: 25,
+        tNote: '下山末班車很早，務必提前確認！錯過只能叫計程車。',
+        note: '道の駅阿蘇買伴手禮。',
+        expenses: [e('阿蘇牛奶布丁', 'shopping', 1500)] },
+      { name: '辛島町・熊本櫻町巴士總站', nameJa: '熊本桜町バスターミナル', romaji: 'Kumamoto Sakuramachi Basu Tāminaru', arrive: 1000, stay: 60,
+        tFrom: '阿蘇站前', tFromJa: '阿蘇駅前', tLine: '九州橫斷巴士（往熊本）', tLineJa: '九州横断バス（熊本 行き）',
+        tTo: '熊本櫻町巴士總站', tToJa: '熊本桜町バスターミナル', tMins: 110,
+        tNote: '上車抽整理券，下車時依號碼付款；「辛島町」或終點「熊本櫻町」下車皆可。',
+        note: 'SAKURA MACHI 逛街，回飯店領行李。',
+        expenses: [e('橫斷巴士', 'transport', 2000)] },
+      // ===== 第二天 =====
+      { day: 2, name: '熊本城', nameJa: '熊本城', romaji: 'Kumamoto-jō', arrive: 570, stay: 90,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '熊本城・市役所前', tToJa: '熊本城・市役所前', tMins: 5,
+        tNote: '在「熊本城・市役所前」下車，沿坡道步行約 10 分鐘到天守閣入口。',
+        note: '天守閣內有展示，城內步道多，穿好走的鞋。',
+        expenses: [] },
+      { day: 2, name: '櫻之馬場 城彩苑', nameJa: '桜の馬場 城彩苑', romaji: 'Sakuranobaba Jōsaien', arrive: 670, stay: 75,
+        tFrom: '熊本城', tFromJa: '熊本城', tLine: '步行', tLineJa: '徒歩', tTo: '櫻之馬場 城彩苑', tToJa: '桜の馬場 城彩苑', tMins: 10,
+        note: '午餐、買熊本熊周邊與伴手禮。', expenses: [] },
+      { day: 2, name: '水前寺成趣園', nameJa: '水前寺成趣園', romaji: 'Suizenji Jōjuen', arrive: 780, stay: 60,
+        tFrom: '熊本城・市役所前', tFromJa: '熊本城・市役所前', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '水前寺公園', tToJa: '水前寺公園', tMins: 20,
+        tNote: '在「水前寺公園」下車，步行約 3 分鐘。', note: '日式迴遊庭園，可在古今傳授之間喝抹茶。', expenses: [] },
+      { day: 2, name: '熊本機場', nameJa: '阿蘇くまもと空港', romaji: 'Aso Kumamoto Kūkō', arrive: 930, stay: 90,
+        tFrom: '熊本櫻町巴士總站', tFromJa: '熊本桜町バスターミナル', tLine: '機場利木津巴士', tLineJa: '空港リムジンバス',
+        tTo: '阿蘇熊本機場', tToJa: '阿蘇くまもと空港', tMins: 50,
+        tNote: '國際線航廈下車，班機前 2 小時抵達。', note: '退稅、託運行李。', expenses: [] }
+    ]
+  });
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) { S = normState(JSON.parse(raw)); return false; }
+  } catch (e) {}
+  S = demoState();
+  save();
+  return true;
+}
+function save() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); }
+  catch (e) { toast('⚠️ 無法寫入手機儲存空間（可能是私密瀏覽模式）'); }
+}
+
+/* ---------- Tailwind CSS 離線快取 ---------- */
+let twTimer = null;
+function cacheTW() {
+  if (window.__TW_OFFLINE) return;
+  clearTimeout(twTimer);
+  twTimer = setTimeout(() => {
+    try {
+      let css = '';
+      document.querySelectorAll('style').forEach(s => {
+        if (s.id === 'app-css' || s.id === 'tw-cache') return;
+        css += s.textContent + '\n';
+      });
+      if (css.length > 2000) localStorage.setItem(TW_KEY, css);
+    } catch (e) {}
+  }, 1500);
+}
+
+/* ---------- 計算 ---------- */
+const idxOf = id => S.nodes.findIndex(n => n.id === id);
+const nodeSum = n => n.expenses.reduce((a, e) => a + e.amt, 0);
+const totalSum = () => S.nodes.reduce((a, n) => a + nodeSum(n), 0);
+const sortNodes = () => S.nodes.sort((a, b) => a.day - b.day || a.arrive - b.arrive);
+const dayNodes = d => S.nodes.filter(n => n.day === d);
+const daySum = d => dayNodes(d).reduce((a, n) => a + nodeSum(n), 0);
+const maxNodeDay = () => S.nodes.reduce((m, n) => Math.max(m, n.day), 0);
+const dayCount = () => Math.max(1, maxNodeDay(), S.trip.days || 1);
+const ZH = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+function zhNum(n) {
+  if (n <= 10) return ZH[n];
+  if (n < 20) return '十' + ZH[n - 10];
+  return ZH[Math.floor(n / 10)] + '十' + (n % 10 ? ZH[n % 10] : '');
+}
+function zhToNum(s) {
+  s = String(s).replace(/兩/g, '二');
+  if (/^\d+$/.test(s)) return +s;
+  const idx = c => ZH.indexOf(c);
+  if (s === '十') return 10;
+  if (s.length === 1) return idx(s);
+  if (s[0] === '十') return 10 + idx(s[1]);
+  if (s.length === 2 && s[1] === '十') return idx(s[0]) * 10;
+  if (s.length === 3 && s[1] === '十') return idx(s[0]) * 10 + idx(s[2]);
+  return NaN;
+}
+function parseYMD(str) {
+  const [y, m, d] = String(str || '').split('-').map(Number);
+  return (y && m && d) ? new Date(y, m - 1, d) : null;
+}
+function ymd(dt) { return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()); }
+function dayDate(d) {
+  const s = parseYMD(S.trip.date); if (!s) return '';
+  s.setDate(s.getDate() + d - 1); return ymd(s);
+}
+function dayLabelDate(d, withYear) {
+  const dt = parseYMD(dayDate(d)); if (!dt) return '';
+  const md = `${dt.getMonth() + 1}/${dt.getDate()}`;
+  return (withYear ? dt.getFullYear() + '/' : '') + md + `（${'日一二三四五六'[dt.getDay()]}）`;
+}
+// 依手機日期計算今天是第幾天（可能 <1 或 >天數）
+function todayDayNum() {
+  const s = parseYMD(S.trip.date), t = parseYMD(todayStr());
+  if (!s || !t) return null;
+  return Math.round((t - s) / 86400000) + 1;
+}
+// 開啟時自動選擇的天數：旅程中 → 今天；出發前 → 第一天；結束後 → 最後一天
+function autoDay() {
+  const t = todayDayNum(), n = dayCount();
+  if (t == null || t < 1) return 1;
+  return Math.min(t, n);
+}
+const isToday = () => dayDate(curDay) === todayStr();
+const vehIcon = s => /步行|徒步|走路|歩/.test(s) ? '🚶' : /計程|タクシー|taxi/i.test(s) ? '🚕' : /船|フェリー|渡輪/.test(s) ? '⛴️'
+  : /JR|電車|列車|新幹線|特急|鐵|鉄|市電|線(?!.*バス)/.test(s) && !/巴士|バス|公車|bus/i.test(s) ? '🚆' : '🚌';
+
+/* ---------- Render：Header ---------- */
+function renderHeader() {
+  $('#trip-title').textContent = S.trip.title || '我的自由行';
+  const n = dayCount();
+  $('#trip-date').textContent = `第${zhNum(curDay)}天 / 共 ${n} 天 · ${dayLabelDate(curDay, true)}` +
+    (isToday() ? ' · 今天' : '') + ` · ${dayNodes(curDay).length} 站`;
+  $('#hdr-total').textContent = yen(daySum(curDay));
+  renderDays();
+  setHdrVar();
+}
+function renderDays() {
+  const n = dayCount(), t = todayDayNum();
+  let h = '';
+  for (let d = 1; d <= n; d++) {
+    const cls = ['press', 'dchip', d === curDay ? 'on' : '', (t != null && d < t) ? 'past' : ''].join(' ');
+    h += `<button class="${cls}" data-act="day" data-d="${d}">
+      ${t === d ? '<em class="today" style="font-style:normal">今天</em>' : ''}
+      <b>第${zhNum(d)}天</b><span>${dayLabelDate(d) || '&nbsp;'}</span></button>`;
+  }
+  h += `<button class="press dchip add" data-act="addDay" aria-label="新增一天">＋</button>`;
+  const box = $('#days');
+  box.innerHTML = h;
+  const on = box.querySelector('.dchip.on');
+  if (on) { const l = on.offsetLeft - 16; if (l < box.scrollLeft || l + on.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = Math.max(0, l - 40); }
+  // 非今天 → 顯示「預覽中」提示列
+  const pb = $('#preview-bar');
+  const live = autoDay();
+  if (curDay !== live) {
+    pb.innerHTML = `👀 預覽第${zhNum(curDay)}天行程<button class="press" data-act="day" data-d="${live}">回到${t != null && t >= 1 && t <= n ? '今天' : '第' + zhNum(live) + '天'}</button>`;
+    pb.classList.remove('hidden');
+  } else pb.classList.add('hidden');
+}
+function setDay(d, keepScroll) {
+  curDay = Math.max(1, Math.min(dayCount(), d));
+  focusId = null; sliderTarget = null;
+  renderList();
+  const now = nowMin(), ns = dayNodes(curDay);
+  $('#slider').value = Math.min(1320, Math.max(360, isToday() ? now : (ns[0] ? ns[0].arrive : 480)));
+  onSlider(false);
+  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  focusId = null;
+  if (!keepScroll) window.scrollTo({ top: 0 });
+}
+function setHdrVar() {
+  document.documentElement.style.setProperty('--hdr', $('#hdr').offsetHeight + 'px');
+}
+
+/* ---------- Render：列表 ---------- */
+function renderList() {
+  const list = $('#list');
+  if (curDay > dayCount()) curDay = dayCount();
+  const ns = dayNodes(curDay);
+  if (S.nodes.length && !ns.length) {
+    const canDel = curDay === dayCount() && curDay > 1;
+    list.innerHTML = `
+      <div style="text-align:center;padding:50px 20px;color:#94a3b8">
+        <div style="font-size:52px">🗓️</div>
+        <div class="text-xl font-extrabold text-white" style="margin:10px 0">第${zhNum(curDay)}天還沒有行程</div>
+        <p style="margin:0 0 20px">${dayLabelDate(curDay, true)}　手動新增，或貼上含「第${zhNum(curDay)}天」的筆記。</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="press btn btn-sec" data-act="openImport">📥 貼上筆記</button>
+          <button class="press btn btn-pri" data-act="add">＋ 新增行程</button>
+        </div>
+        ${canDel ? `<button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="delDay">移除第${zhNum(curDay)}天</button>` : ''}
+      </div>`;
+  } else if (!S.nodes.length) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:#94a3b8">
+        <div style="font-size:56px">🗺️</div>
+        <div class="text-xl font-extrabold text-white" style="margin:10px 0">還沒有行程</div>
+        <p style="margin:0 0 20px">貼上你的自由行筆記，或手動新增第一站。</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="press btn btn-sec" data-act="openImport">📥 貼上筆記</button>
+          <button class="press btn btn-pri" data-act="add">＋ 新增行程</button>
+        </div>
+        <button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="resetDemo">載入示範（熊本・阿蘇）</button>
+      </div>`;
+  } else {
+    list.innerHTML = ns.map((n, i) => cardHTML(n, i)).join('');
+  }
+  renderTicks();
+  updateLive();
+  renderHeader();
+  cacheTW();
+}
+
+function rerenderCard(id) {
+  const n = S.nodes.find(x => x.id === id); if (!n) return;
+  const i = dayNodes(n.day).indexOf(n);
+  const el = document.getElementById('node-' + id);
+  if (el) el.outerHTML = cardHTML(n, i);
+  updateLive(); renderHeader(); cacheTW();
+}
+
+function stnBtn(zh, ja, id, mode) {
+  if (!zh && !ja) return '<span class="text-slate-500">—</span>';
+  return `<button class="press stn" data-act="dir" data-id="${id}" data-mode="${mode}">
+    <span>${esc(zh || ja)}</span>${ja && ja !== zh ? `<span class="ja">${esc(ja)}</span>` : ''}<span class="go">🪧</span></button>`;
+}
+
+function legHTML(n) {
+  const has = n.tLine || n.tFrom || n.tTo || n.tMins || n.tNote;
+  if (!has) return '';
+  const line = n.tLine || n.tLineJa;
+  return `
+  <div class="leg">
+    <div class="flex items-center justify-between gap-2">
+      <span class="font-extrabold text-sky-300" style="font-size:15px">${vehIcon(line + n.tLineJa)} 交通前往</span>
+      ${n.tMins ? `<span class="live live-move" style="padding:4px 10px">🕒 車程 ${durTxt(n.tMins)}</span>` : ''}
+    </div>
+    <div class="leg-grid">
+      <span class="lbl">上車</span><div>${stnBtn(n.tFrom, n.tFromJa, n.id, 2)}</div>
+      ${line ? `<span class="lbl" style="background:#fde68a">路線</span>
+        <div style="font-weight:800;font-size:16px;color:#fff">${esc(n.tLine || n.tLineJa)}${n.tLineJa && n.tLineJa !== n.tLine ? `<div style="font-size:14px;color:#67e8f9;font-weight:700">${esc(n.tLineJa)}</div>` : ''}</div>` : ''}
+      <span class="lbl off">下車</span><div>${stnBtn(n.tTo || n.name, n.tToJa || n.nameJa, n.id, 0)}</div>
+    </div>
+    ${n.tNote ? `<div class="warn">⚠️ ${esc(n.tNote)}</div>` : ''}
+  </div>`;
+}
+
+function cardHTML(n, i) {
+  const dep = n.arrive + n.stay;
+  const sum = nodeSum(n);
+  const open = openExp.has(n.id);
+  const cat = expCat[n.id] || 'food';
+  return `
+  <article id="node-${n.id}" data-id="${n.id}" class="node-card${focusId === n.id ? ' is-focus' : ''}">
+    ${legHTML(n)}
+    <div style="padding:14px">
+      <div class="flex items-start gap-3">
+        <div class="idx">${i + 1}</div>
+        <button class="press flex-1 min-w-0" style="text-align:left" data-act="dir" data-id="${n.id}" data-mode="node">
+          <div style="font-size:22px;font-weight:900;line-height:1.2;color:#fff;word-break:break-word">${esc(n.name || '（未命名）')}</div>
+          ${(n.nameJa || n.romaji) ? `<div style="font-size:16px;font-weight:800;color:#67e8f9;margin-top:2px">${esc(n.nameJa)}${n.romaji ? ` <span style="color:#94a3b8;font-weight:600;font-size:14px">/ ${esc(n.romaji)}</span>` : ''}</div>` : ''}
+          <div style="font-size:12px;color:#64748b;margin-top:2px">👆 點名稱出示日文指路卡</div>
+        </button>
+        <div class="shrink-0" style="text-align:right">
+          <span class="subt">${yen(sum)}<small>${twd(sum)}</small></span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2" style="margin-top:12px">
+        <div class="tbox"><div class="k">抵達</div><div class="v">${fmt(n.arrive)}</div></div>
+        <div class="tbox stay"><div class="k">停留</div><div class="v">${n.stay}<span style="font-size:14px">分</span></div></div>
+        <div class="tbox dep"><div class="k">建議離開</div><div class="v">${fmt(dep)}</div></div>
+      </div>
+
+      <div data-live="${n.id}" style="margin-top:10px;min-height:0"></div>
+
+      <div class="grid gap-2" style="grid-template-columns:1fr 1fr 1fr 0.8fr;margin-top:10px">
+        <button class="press sbtn minus" data-act="shift" data-id="${n.id}" data-d="-15">−15m</button>
+        <button class="press sbtn plus" data-act="shift" data-id="${n.id}" data-d="15">+15m</button>
+        <button class="press sbtn plus2" data-act="shift" data-id="${n.id}" data-d="30">+30m</button>
+        <button class="press sbtn edit" data-act="edit" data-id="${n.id}" aria-label="編輯">✏️</button>
+      </div>
+
+      ${n.note ? `<div class="note">📝 ${esc(n.note)}</div>` : ''}
+    </div>
+
+    <div style="border-top:1px solid #263241">
+      <button class="press w-full flex items-center justify-between" style="width:100%;padding:12px 14px" data-act="toggleExp" data-id="${n.id}">
+        <span style="font-weight:900;font-size:16px">💴 記帳 <span style="color:#94a3b8">(${n.expenses.length})</span></span>
+        <span style="font-weight:800;color:#fbbf24" class="tabnum">${yen(sum)} <span style="color:#94a3b8;font-weight:700">≈ ${twd(sum)}</span> ${open ? '▴' : '▾'}</span>
+      </button>
+      <div class="${open ? '' : 'hidden'}" style="padding:0 14px 14px">
+        ${n.expenses.length ? `<div style="margin-bottom:8px">${n.expenses.map(e => expRowHTML(e, n.id, false)).join('')}</div>`
+          : `<div style="color:#64748b;font-size:14px;padding:4px 0 10px">尚無花費紀錄</div>`}
+        <div class="hide-sb" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px">
+          ${CATS.map(c => `<button class="press chip${c.k === cat ? ' on' : ''}" style="--c:${c.c};flex-shrink:0" data-act="cat" data-id="${n.id}" data-cat="${c.k}">${c.i} ${c.n}</button>`).join('')}
+        </div>
+        <input class="inp" data-exp-item placeholder="品項（可留空，預設為分類名）" maxlength="40">
+        <div class="flex gap-2" style="margin-top:8px">
+          <div class="flex-1 min-w-0" style="position:relative">
+            <input class="inp tabnum" data-exp-amt data-id="${n.id}" type="text" inputmode="numeric" placeholder="金額 ¥" style="font-weight:900;padding-right:90px">
+            <span data-exp-twd style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-weight:800;font-size:14px;pointer-events:none">≈ NT$0</span>
+          </div>
+          <button class="press addbtn" data-act="addExp" data-id="${n.id}">＋ 記一筆</button>
+        </div>
+      </div>
+    </div>
+  </article>`;
+}
+
+function expRowHTML(e, nodeId, showNode) {
+  const c = CAT[e.cat] || CAT.misc;
+  const d = new Date(e.ts);
+  const node = showNode ? S.nodes.find(n => n.id === nodeId) : null;
+  return `<div class="exp-row">
+    <div class="catdot" style="background:${c.c}22;border:1px solid ${c.c}">${c.i}</div>
+    <div class="flex-1 min-w-0">
+      <div style="font-weight:800;font-size:16px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.item)}</div>
+      <div style="font-size:13px;color:#94a3b8">${c.n} · ${pad(d.getHours())}:${pad(d.getMinutes())}${node ? ' · 📍' + (anaScope === 'all' ? `第${zhNum(node.day)}天 ` : '') + esc(node.name) : ''}</div>
+    </div>
+    <div style="text-align:right" class="tabnum">
+      <div style="font-weight:900;font-size:16px;color:#fbbf24">${yen(e.amt)}</div>
+      <div style="font-size:12px;color:#94a3b8">${twd(e.amt)}</div>
+    </div>
+    <button class="press xbtn" data-act="${showNode ? 'delExpA' : 'delExp'}" data-id="${nodeId}" data-eid="${e.id}" aria-label="刪除">✕</button>
+  </div>`;
+}
+
+/* ---------- 即時狀態（倒數） ---------- */
+function updateLive() {
+  // 跨過午夜 → 自動跳到新的「今天」
+  const ts = todayStr();
+  if (lastTodayStr && ts !== lastTodayStr) { lastTodayStr = ts; setDay(autoDay()); return; }
+  lastTodayStr = ts;
+  const today = isToday();
+  const now = nowMin();
+  const ns = dayNodes(curDay);
+  ns.forEach((n, i) => {
+    const el = document.querySelector(`[data-live="${n.id}"]`);
+    const card = document.getElementById('node-' + n.id);
+    if (!el || !card) return;
+    card.classList.remove('is-past', 'is-now');
+    if (!today) { el.innerHTML = ''; return; }
+    const dep = n.arrive + n.stay;
+    const next = ns[i + 1];
+    let h = '';
+    if (now >= dep) {
+      if (next && now < next.arrive) {
+        h = `<span class="live live-move">🚌 移動中 → ${esc(next.name)}（${fmt(next.arrive)} 抵達）</span>`;
+      } else {
+        h = `<span class="live live-past">✓ 已過預定離開時間</span>`;
+        card.classList.add('is-past');
+      }
+    } else if (now >= n.arrive) {
+      const left = dep - now;
+      h = `<span class="live ${left <= 10 ? 'live-urgent' : 'live-now'}">⏳ 停留中・剩 ${durTxt(left)} 離開（${fmt(dep)}）</span>`;
+      card.classList.add('is-now');
+    } else {
+      h = `<span class="live live-next">🕒 ${durTxt(n.arrive - now)}後抵達</span>`;
+    }
+    el.innerHTML = h;
+  });
+  renderBanner(today, now);
+}
+
+function renderBanner(today, now) {
+  const b = $('#banner');
+  const ns = dayNodes(curDay);
+  if (!ns.length) { b.innerHTML = ''; setHdrVar(); return; }
+  if (!today) {
+    const t = todayDayNum();
+    const msg = (t != null && t > curDay) ? `第${zhNum(curDay)}天（${dayLabelDate(curDay)}）已經過去`
+      : `倒數提示將於 ${dayLabelDate(curDay, true)} 當天啟動`;
+    b.innerHTML = `<div class="banner" style="background:#111821;border:1px solid #263241;color:#94a3b8;font-size:14px">📅 ${esc(msg)}</div>`;
+    setHdrVar(); return;
+  }
+  const cur = ns.find(n => now >= n.arrive && now < n.arrive + n.stay);
+  const next = ns.find(n => n.arrive > now);
+  let html;
+  if (cur) {
+    const left = cur.arrive + cur.stay - now;
+    const urgent = left <= 10;
+    html = `<button class="press banner w-full" style="width:100%;text-align:left;background:${urgent ? '#7f1d1d' : '#064e3b'};color:${urgent ? '#fecaca' : '#a7f3d0'}" data-act="jump" data-id="${cur.id}">
+      <span style="font-size:22px">${urgent ? '🚨' : '📍'}</span>
+      <span class="flex-1 min-w-0"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(cur.name)}</span>
+      <span style="font-size:13px;opacity:.85">${fmt(cur.arrive + cur.stay)} 前離開</span></span>
+      <span style="font-size:22px" class="tabnum">剩 ${left} 分</span></button>`;
+  } else if (next) {
+    const to = next.arrive - now;
+    html = `<button class="press banner w-full" style="width:100%;text-align:left;background:#0c4a6e;color:#bae6fd" data-act="jump" data-id="${next.id}">
+      <span style="font-size:22px">➡️</span>
+      <span class="flex-1 min-w-0"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">下一站：${esc(next.name)}</span>
+      <span style="font-size:13px;opacity:.85">${fmt(next.arrive)} 抵達</span></span>
+      <span style="font-size:20px" class="tabnum">${durTxt(to)}</span></button>`;
+  } else {
+    const nextDay = curDay < dayCount() ? `明天是第${zhNum(curDay + 1)}天，點上方分頁可先預覽。` : '整趟旅程到此結束！';
+    html = `<div class="banner" style="background:#1e1b4b;color:#c7d2fe">🎉 今日行程已全部完成，辛苦了！${nextDay}</div>`;
+  }
+  b.innerHTML = html;
+  setHdrVar();
+}
+
+/* ---------- 時間軸 Slider ---------- */
+function renderTicks() {
+  const t = $('#ticks');
+  t.innerHTML = dayNodes(curDay).map(n => {
+    const p = Math.min(100, Math.max(0, (n.arrive - 360) / 960 * 100));
+    return `<span class="tick" style="left:${p}%"></span>`;
+  }).join('');
+}
+let sliderTarget = null;
+function onSlider(scroll) {
+  const t = +$('#slider').value;
+  $('#slider-label').textContent = fmtPlain(t);
+  const ns = dayNodes(curDay);
+  if (!ns.length) { $('#slider-target').textContent = ''; return; }
+  let idx = -1;
+  ns.forEach((n, i) => { if (n.arrive <= t) idx = i; });
+  if (idx < 0) idx = 0;
+  const n = ns[idx];
+  const inside = t >= n.arrive && t < n.arrive + n.stay;
+  $('#slider-target').textContent = (inside ? '📍 ' : '→ ') + n.name;
+  if (n.id !== sliderTarget || scroll === 'force') {
+    sliderTarget = n.id;
+    focusCard(n.id, scroll !== false);
+  }
+}
+function focusCard(id, scroll) {
+  focusId = id;
+  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  const el = document.getElementById('node-' + id);
+  if (!el) return;
+  el.classList.add('is-focus');
+  if (scroll) { setHdrVar(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
+function sliderToNow() {
+  const now = nowMin();
+  $('#slider').value = Math.min(1320, Math.max(360, now));
+  sliderTarget = null;
+  onSlider(true);
+}
+
+/* ---------- 連鎖時間順延 ---------- */
+function shift(id, d) {
+  const n = S.nodes.find(x => x.id === id); if (!n) return;
+  const list = dayNodes(n.day);          // 只順延同一天的行程
+  const i = list.indexOf(n);
+  const snap = S.nodes.map(x => [x.id, x.arrive, x.stay]);
+  let cnt = 0;
+  if (S.settings.shiftMode === 'stay') {
+    const old = n.stay;
+    n.stay = Math.max(0, n.stay + d);
+    const real = n.stay - old;
+    if (real === 0) { toast('停留時間已為 0，無法再縮短'); return; }
+    for (let j = i + 1; j < list.length; j++) { list[j].arrive = Math.max(0, list[j].arrive + real); cnt++; }
+  } else {
+    if (n.arrive + d < 0) { toast('時間無法早於 00:00'); return; }
+    for (let j = i; j < list.length; j++) { list[j].arrive = Math.max(0, list[j].arrive + d); cnt++; }
+  }
+  save(); renderList();
+  focusCard(id, false);
+  const modeTxt = S.settings.shiftMode === 'stay' ? `本站停留 ${d > 0 ? '+' : ''}${d} 分，後續 ${cnt} 站` : `本站起共 ${cnt} 站`;
+  toast(`${d > 0 ? '⏩ 順延' : '⏪ 提前'} ${Math.abs(d)} 分：${modeTxt}已更新`, {
+    label: '復原',
+    fn: () => {
+      const m = Object.fromEntries(snap.map(s => [s[0], s]));
+      S.nodes.forEach(x => { if (m[x.id]) { x.arrive = m[x.id][1]; x.stay = m[x.id][2]; } });
+      save(); renderList(); toast('已復原');
+    }
+  });
+}
+
+/* ---------- 記帳 ---------- */
+function addExp(id) {
+  const i = idxOf(id); if (i < 0) return;
+  const card = document.getElementById('node-' + id);
+  const itemEl = card.querySelector('[data-exp-item]');
+  const amtEl = card.querySelector('[data-exp-amt]');
+  const amt = parseAmt(amtEl.value);
+  if (!(amt > 0)) { toast('請輸入金額（日圓）'); amtEl.focus(); return; }
+  const cat = expCat[id] || 'food';
+  const item = itemEl.value.trim() || CAT[cat].n;
+  S.nodes[i].expenses.push({ id: uid(), item, cat, amt, ts: Date.now() });
+  openExp.add(id);
+  save(); rerenderCard(id);
+  toast(`✅ ${CAT[cat].i} ${item} ${yen(amt)}（≈ ${twd(amt)}）`);
+}
+async function delExp(nodeId, eid) {
+  const n = S.nodes.find(x => x.id === nodeId); if (!n) return false;
+  const e = n.expenses.find(x => x.id === eid); if (!e) return false;
+  if (!(await ask(`刪除「${e.item} ${yen(e.amt)}」？`, '刪除', true))) return false;
+  n.expenses = n.expenses.filter(x => x.id !== eid);
+  save();
+  return true;
+}
+
+/* ---------- 支出分析 ---------- */
+function renderAnalysis() {
+  const isAll = anaScope === 'all';
+  const days = dayCount();
+  const scopeNodes = isAll ? S.nodes : dayNodes(curDay);
+  const total = scopeNodes.reduce((a, n) => a + nodeSum(n), 0);
+  const dayBudget = S.settings.budget || 0;
+  const budget = isAll ? dayBudget * days : dayBudget;
+  const pct = budget > 0 ? total / budget * 100 : 0;
+  const over = total - budget;
+  const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#22c55e';
+  const byCat = CATS.map(c => ({ ...c, sum: scopeNodes.reduce((a, n) => a + n.expenses.filter(e => e.cat === c.k).reduce((s, e) => s + e.amt, 0), 0) }))
+    .sort((a, b) => b.sum - a.sum);
+  const all = [];
+  scopeNodes.forEach(n => n.expenses.forEach(e => all.push({ e, n })));
+  all.sort((a, b) => b.e.ts - a.e.ts);
+  $('#ana-title').textContent = isAll ? '💰 全旅程支出分析' : `💰 第${zhNum(curDay)}天支出分析`;
+
+  // 各景點小計（全旅程時依天分組）
+  let nodeRows = '';
+  for (let d = 1; d <= days; d++) {
+    if (!isAll && d !== curDay) continue;
+    const dn = dayNodes(d);
+    if (isAll) nodeRows += `<div class="dayhead flex justify-between"><span>第${zhNum(d)}天 · ${dayLabelDate(d)}</span><span class="tabnum">${yen(daySum(d))}</span></div>`;
+    nodeRows += dn.map((n, i) => {
+      const s = nodeSum(n);
+      return `<button class="press w-full flex items-center justify-between" style="width:100%;padding:10px 0;border-bottom:1px solid #1f2a37;text-align:left" data-act="jumpA" data-id="${n.id}">
+        <span style="font-weight:800;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${esc(n.name)}</span>
+        <span class="tabnum" style="font-weight:900;color:${s ? '#fbbf24' : '#475569'};white-space:nowrap;margin-left:8px">${yen(s)}</span></button>`;
+    }).join('') || (isAll ? '<div style="color:#64748b;padding:6px 0">（沒有行程）</div>' : '');
+  }
+
+  $('#ana-body').innerHTML = `
+    <div class="seg">
+      <button class="press${isAll ? '' : ' on'}" data-act="anaScope" data-s="day">第${zhNum(curDay)}天</button>
+      <button class="press${isAll ? ' on' : ''}" data-act="anaScope" data-s="all">全旅程（${days} 天）</button>
+    </div>
+    <div style="margin-top:14px;background:linear-gradient(135deg,#164e63,#0b0f14);border:1px solid #155e75;border-radius:20px;padding:18px">
+      <div style="font-size:14px;font-weight:800;color:#a5f3fc">${isAll ? '全旅程總花費' : `第${zhNum(curDay)}天總花費 · ${dayLabelDate(curDay)}`}</div>
+      <div class="tabnum" style="font-size:44px;font-weight:900;color:#fff;line-height:1.1">${yen(total)}</div>
+      <div class="tabnum" style="font-size:22px;font-weight:800;color:#fbbf24">≈ ${twd(total)}</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:4px">${all.length} 筆 · 匯率 1 JPY = ${S.settings.rate} TWD</div>
+    </div>
+
+    <div class="sec-title">🎯 預算進度</div>
+    <div style="background:#0b0f14;border:1px solid #263241;border-radius:16px;padding:14px">
+      <div class="flex items-center gap-2">
+        <span style="font-weight:800;color:#94a3b8;white-space:nowrap">每日預算 ¥</span>
+        <input id="a-budget" class="inp tabnum" type="number" inputmode="numeric" step="500" value="${dayBudget}" style="font-weight:900">
+      </div>
+      ${isAll ? `<div style="font-size:13px;color:#94a3b8;margin-top:6px">全旅程預算 = 每日 ${yen(dayBudget)} × ${days} 天 = ${yen(budget)}</div>` : ''}
+      <div class="bar" style="margin-top:12px;height:18px"><div style="width:${Math.min(100, pct)}%;background:${barColor}"></div></div>
+      <div class="flex justify-between tabnum" style="margin-top:8px;font-weight:900">
+        <span style="color:${barColor};font-size:20px">${budget > 0 ? pct.toFixed(1) + '%' : '未設定'}</span>
+        <span style="color:#cbd5e1">${budget > 0 ? (over > 0 ? '' : '剩餘 ' + yen(-over)) : ''}</span>
+      </div>
+      ${budget > 0 && over > 0 ? `<div class="warn" style="background:#450a0a;border-color:#b91c1c;color:#fecaca;font-weight:900">🚨 已超支 ${yen(over)}（≈ ${twd(over)}）</div>`
+        : budget > 0 && pct >= 80 ? `<div class="warn">⚠️ 已使用 ${pct.toFixed(0)}%，接近預算上限</div>` : ''}
+    </div>
+
+    <div class="sec-title">📊 類別佔比</div>
+    ${total > 0 ? `
+    <div style="display:flex;height:22px;border-radius:99px;overflow:hidden;background:#1f2937">
+      ${byCat.filter(c => c.sum > 0).map(c => `<div style="width:${c.sum / total * 100}%;background:${c.c}"></div>`).join('')}
+    </div>
+    <div style="margin-top:12px">
+      ${byCat.map(c => {
+        const p = total > 0 ? c.sum / total * 100 : 0;
+        return `<div style="padding:8px 0">
+          <div class="flex items-center justify-between tabnum">
+            <span style="font-weight:900;font-size:16px">${c.i} ${c.n}</span>
+            <span style="font-weight:900;color:${c.sum ? '#fff' : '#475569'}">${yen(c.sum)} <span style="color:${c.c};margin-left:6px">${p.toFixed(1)}%</span></span>
+          </div>
+          <div class="bar" style="margin-top:6px;height:10px"><div style="width:${p}%;background:${c.c}"></div></div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div style="color:#64748b">尚無花費資料</div>`}
+
+    <div class="sec-title">📍 各景點小計</div>
+    <div>${nodeRows || '<div style="color:#64748b">這一天沒有行程</div>'}</div>
+
+    <div class="sec-title">🧾 流水帳（新 → 舊）</div>
+    <div>${all.length ? all.map(x => expRowHTML(x.e, x.n.id, true)).join('') : '<div style="color:#64748b">尚無紀錄，請在景點卡片下方「記帳」新增。</div>'}</div>
+  `;
+  const bi = $('#a-budget');
+  bi.addEventListener('change', () => {
+    S.settings.budget = Math.max(0, Number(bi.value) || 0);
+    save(); renderAnalysis();
+  });
+  cacheTW();
+}
+
+/* ---------- 新增 / 編輯 ---------- */
+const F = ['name', 'nameJa', 'romaji', 'tFrom', 'tFromJa', 'tLine', 'tLineJa', 'tTo', 'tToJa', 'tNote', 'note'];
+function openEdit(id) {
+  const n = id ? S.nodes.find(x => x.id === id) : null;
+  const dn = dayNodes(curDay);
+  const last = dn[dn.length - 1];
+  const d = n || {
+    day: curDay,
+    name: '', nameJa: '', romaji: '', arrive: last ? last.arrive + last.stay + 30 : 540, stay: 60,
+    tFrom: last ? last.name : '', tFromJa: last ? last.nameJa : '', tLine: '', tLineJa: '', tTo: '', tToJa: '', tMins: 30, tNote: '', note: ''
+  };
+  $('#edit-title').textContent = n ? '✏️ 編輯行程' : '＋ 新增行程';
+  $('#f-id').value = n ? n.id : '';
+  F.forEach(k => { $('#f-' + k).value = d[k] || ''; });
+  const maxD = dayCount() + 1;
+  let opts = '';
+  for (let k = 1; k <= maxD; k++) opts += `<option value="${k}">第${zhNum(k)}天${dayLabelDate(k) ? '　' + dayLabelDate(k) : ''}${k === maxD ? '（新增一天）' : ''}</option>`;
+  $('#f-day').innerHTML = opts;
+  $('#f-day').value = String(d.day || curDay);
+  $('#f-arrive').value = fmtPlain(d.arrive);
+  $('#f-stay').value = d.stay;
+  $('#f-tMins').value = d.tMins || '';
+  $('#f-del').classList.toggle('hidden', !n);
+  $('#f-chain-wrap').classList.toggle('hidden', !n);
+  $('#f-chain').checked = true;
+  openModal('m-edit');
+}
+function saveNode() {
+  const id = $('#f-id').value;
+  const name = $('#f-name').value.trim();
+  if (!name) { toast('請輸入地點名稱'); $('#f-name').focus(); return; }
+  const arrive = toMin($('#f-arrive').value);
+  if (arrive == null) { toast('請設定抵達時間'); return; }
+  const data = {};
+  F.forEach(k => { data[k] = $('#f-' + k).value.trim(); });
+  data.arrive = arrive;
+  data.day = Math.max(1, parseInt($('#f-day').value, 10) || curDay);
+  data.stay = Math.max(0, parseInt($('#f-stay').value, 10) || 0);
+  data.tMins = Math.max(0, parseInt($('#f-tMins').value, 10) || 0);
+  if (!data.nameJa) { const dj = dictLookup(name); if (dj) { data.nameJa = dj.ja; if (!data.romaji) data.romaji = dj.ro; } }
+  if (data.tFrom && !data.tFromJa) data.tFromJa = autoJa(data.tFrom);
+  if (data.tTo && !data.tToJa) data.tToJa = autoJa(data.tTo);
+
+  let targetDay = data.day;
+  if (id) {
+    const n = S.nodes.find(x => x.id === id);
+    const sameDay = dayNodes(n.day);
+    const after = sameDay.slice(sameDay.indexOf(n) + 1);   // 同一天、在它之後的行程
+    const oldDep = n.arrive + n.stay;
+    const dayChanged = n.day !== data.day;
+    Object.assign(n, data);
+    const delta = (n.arrive + n.stay) - oldDep;
+    if ($('#f-chain').checked && delta !== 0 && !dayChanged && after.length) {
+      after.forEach(x => { x.arrive = Math.max(0, x.arrive + delta); });
+      toast(`已儲存，同日後續 ${after.length} 站連動 ${delta > 0 ? '+' : ''}${delta} 分`);
+    } else toast(dayChanged ? `已移到第${zhNum(data.day)}天` : '已儲存');
+  } else {
+    const n = normNode(Object.assign({ id: uid() }, data));
+    S.nodes.push(n);
+    toast(`已新增到第${zhNum(data.day)}天`);
+    focusId = n.id;
+  }
+  if (targetDay > (S.trip.days || 1)) S.trip.days = targetDay;
+  sortNodes();
+  curDay = targetDay;
+  save(); closeModal('m-edit'); renderList();
+  const fid = id || focusId;
+  if (fid) setTimeout(() => focusCard(fid, true), 60);
+}
+async function delNode() {
+  const id = $('#f-id').value; const n = S.nodes.find(x => x.id === id); if (!n) return;
+  if (!(await ask(`刪除「${n.name}」及其 ${n.expenses.length} 筆花費？`, '刪除', true))) return;
+  S.nodes = S.nodes.filter(x => x.id !== id);
+  save(); closeModal('m-edit'); renderList(); toast('已刪除');
+}
+
+/* ---------- 文字解析器 ---------- */
+const SAMPLE = `第一天 11/3
+08:00 辛島町 / Karashimachō
+停留 10 分
+📝 飯店退房、寄放行李
+
+08:15 熊本站 / 熊本駅
+🚋 辛島町 → 熊本駅前（熊本市電 A系統）車程 15 分
+⚠️ 後門上車、前門下車付款
+停留 35 分
+備註：買鐵路便當
+
+10:10 阿蘇站 / 阿蘇駅
+🚆 熊本駅 → 阿蘇駅（JR 特急 あそぼーい！）約 80 分
+停留 20 分
+
+11:05-12:05 阿蘇火山口 / 阿蘇山上ターミナル
+🚌 阿蘇駅前 → 阿蘇山上ターミナル（產交巴士 阿蘇火山線）35 分
+注意：山上收訊差，先截圖回程班次
+備註：帶外套
+
+12:20 草千里 / Kusasenri
+搭乘：產交巴士 阿蘇火山線（下山）
+上車：阿蘇山上ターミナル
+下車：草千里
+車程：10 分
+自由活動 1.5 小時
+📝 午餐赤牛丼、騎馬
+
+第二天
+09:30 熊本城
+🚋 辛島町 → 熊本城・市役所前（熊本市電）5 分
+停留 90 分
+
+11:20 水前寺成趣園
+🚋 熊本城・市役所前 → 水前寺公園（熊本市電）20 分
+停留 60 分
+備註：喝抹茶`;
+
+function splitName(s) {
+  const r = { zh: '', ja: '', ro: '' };
+  s = (s || '').trim();
+  // 括號內容
+  s = s.replace(/[（(]([^）)]*)[）)]/g, (m, inner) => {
+    inner = inner.trim();
+    if (isLatin(inner) && /[A-Za-z]/.test(inner)) { r.ro = r.ro || inner; return ''; }
+    if (hasKana(inner)) { r.ja = r.ja || inner; return ''; }
+    return m;
+  }).trim();
+  const parts = s.split(/\s*[\/／]\s*/).map(x => x.trim()).filter(Boolean);
+  parts.forEach((p, i) => {
+    if (i === 0 && !(isLatin(p) && /[A-Za-z]/.test(p) && parts.length > 1)) { r.zh = p; return; }
+    if (isLatin(p) && /[A-Za-z]/.test(p)) r.ro = r.ro || p;
+    else if (!r.zh) r.zh = p;
+    else r.ja = r.ja || p;
+  });
+  if (!r.zh) r.zh = r.ja || r.ro;
+  return r;
+}
+const stripLead = s => (s || '').replace(/^[\s\p{Extended_Pictographic}\uFE0F\u200d・•\-*>#]+/u, '').trim();
+const STAY_RE = /(停留|自由活動|停|待|逛|玩|stay)\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(小時|hr|h|分鐘|分|min|m)?/i;
+const MINS_RE = /(?:車程|約|需時|需|乘車|費時)?\s*(?:(\d+(?:\.\d+)?)\s*(?:小時|hr|h)\s*)?(\d{1,3})?\s*(?:分鐘|分|mins?)?/;
+function parseDur(numStr, unit) {
+  const v = parseFloat(numStr);
+  if (!isFinite(v)) return null;
+  return /小時|hr|h/i.test(unit || '') ? Math.round(v * 60) : Math.round(v);
+}
+function extractMins(s) {
+  const m = s.match(/(\d+(?:\.\d+)?)\s*(?:小時|hr|h)\s*(?:(\d{1,2})\s*(?:分鐘|分|min)?)?/i);
+  if (m) return { v: Math.round(parseFloat(m[1]) * 60 + (+m[2] || 0)), rest: s.replace(m[0], '') };
+  const k = s.match(/(?:車程|約|需時|乘車|費時|需)?\s*(\d{1,3})\s*(?:分鐘|分|mins?)/i);
+  if (k) return { v: +k[1], rest: s.replace(k[0], '') };
+  return { v: 0, rest: s };
+}
+function parseTransport(raw, n) {
+  let s = stripLead(raw).replace(/^(搭乘|乘坐|轉乘|搭|坐|交通方式|交通|路線)\s*[:：]?\s*/, '');
+  const mm = extractMins(s); if (mm.v) { n.tMins = mm.v; s = mm.rest; }
+  const pm = s.match(/[（(]([^）)]+)[）)]/);
+  const arrow = s.replace(/[（(][^）)]+[）)]/, '').match(/^(.*?)\s*(?:→|->|=>|⇒|➡|➜|⟶|＞|~>)\s*(.*)$/);
+  if (arrow) {
+    if (pm) { const ln = splitName(pm[1]); n.tLine = ln.zh; if (hasKana(pm[1])) n.tLineJa = pm[1].trim(); }
+    const a = splitName(arrow[1].replace(/[，,。]+$/, '')), b = splitName(arrow[2].replace(/[，,。]+$/, ''));
+    if (a.zh) { n.tFrom = a.zh; if (a.ja) n.tFromJa = a.ja; }
+    if (b.zh) { n.tTo = b.zh; if (b.ja) n.tToJa = b.ja; }
+  } else {
+    const line = s.replace(/[，,。]+$/, '').trim();
+    if (line) {
+      const ln = splitName(line);
+      n.tLine = n.tLine || ln.zh;
+      if (ln.ja) n.tLineJa = ln.ja; else if (hasKana(line)) n.tLineJa = line;
+    }
+  }
+}
+const KEY_RE = /^[\s\p{Extended_Pictographic}\uFE0F]*(停留時間|停留|自由活動|上車站|上車|乘車站|出發站|起站|下車注意|下車站|下車|到站|迄站|搭乘|交通方式|交通|路線|車種|車程|乘車時間|注意事項|注意|提醒|備註|備注|筆記|說明|日文名稱|日文|日語|羅馬拼音|拼音|note|memo|stay|line|from|to)\s*[:：=]\s*(.+)$/iu;
+function isTransportPiece(p) {
+  return /^[\s]*[🚌🚃🚆🚄🚇🚋🚶🚕🚍🚎🚗🚲⛴🚅🚈🚉]/u.test(p) || /(→|->|=>|⇒|➡|➜)/.test(p) || /^(搭乘|乘坐|轉乘|搭|坐)\s*[:：]?/.test(p.trim());
+}
+function applyPiece(p, n) {
+  p = p.trim(); if (!p) return;
+  if (/^[\s]*📝/u.test(p)) { n.note += (n.note ? '\n' : '') + stripLead(p); return; }
+  if (/^[\s]*(⚠️|⚠|❗|‼️)/u.test(p)) { n.tNote += (n.tNote ? '；' : '') + stripLead(p); return; }
+  const km = p.match(KEY_RE);
+  if (km) {
+    const k = km[1].toLowerCase(), v = km[2].trim();
+    if (/停留|自由活動|stay/.test(k)) { const sm = v.match(/(\d+(?:\.\d+)?)\s*(小時|hr|h|分鐘|分|min|m)?/i); if (sm) n._stay = parseDur(sm[1], sm[2]); return; }
+    if (/上車|乘車站|出發站|起站|from/.test(k)) { const x = splitName(v); n.tFrom = x.zh; if (x.ja) n.tFromJa = x.ja; return; }
+    if (/下車注意|注意|提醒/.test(k)) { n.tNote += (n.tNote ? '；' : '') + v; return; }
+    if (/下車|到站|迄站|^to$/.test(k)) { const x = splitName(v); n.tTo = x.zh; if (x.ja) n.tToJa = x.ja; return; }
+    if (/搭乘|交通|路線|車種|line/.test(k)) { parseTransport(v, n); return; }
+    if (/車程|乘車時間/.test(k)) { const mm = extractMins(v); if (mm.v) n.tMins = mm.v; else { const d = parseInt(v, 10); if (d) n.tMins = d; } return; }
+    if (/備註|備注|筆記|說明|note|memo/.test(k)) { n.note += (n.note ? '\n' : '') + v; return; }
+    if (/日文|日語/.test(k)) { n.nameJa = v; return; }
+    if (/拼音/.test(k)) { n.romaji = v; return; }
+  }
+  if (isTransportPiece(p)) { parseTransport(p, n); return; }
+  const sm = p.match(STAY_RE);
+  if (sm) {
+    n._stay = parseDur(sm[2], sm[3]);
+    const rest = p.replace(sm[0], '').replace(/^[\s,，、;；]+|[\s,，、;；]+$/g, '');
+    if (rest) n.note += (n.note ? '\n' : '') + rest;
+    return;
+  }
+  n.note += (n.note ? '\n' : '') + stripLead(p);
+}
+function parseItinerary(text) {
+  const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean);
+  const HEAD = /^[\s\-*•・#>]*(?:\d{1,2}[.)、]\s*)?(?:第?\s*\d+\s*站\s*[:：]?\s*)?(\d{1,2})[:：](\d{2})(?:\s*[-~～–—至到]\s*(\d{1,2})[:：](\d{2}))?\s*(.*)$/;
+  // 「第一天」「第 2 天」「Day 3」「D4」，後面可接日期（11/3、2026/11/3、11月3日）
+  const DAY_RE = /^[\s#*\-•・>【\[（(]*(?:第\s*([一二三四五六七八九十兩\d]{1,3})\s*[天日]|day\s*(\d{1,2})|D(\d{1,2})(?![\d:：]))\s*[】\]）)]?\s*(.*)$/i;
+  const DATE_RE = /(?:(\d{4})\s*[\/\-.年]\s*)?(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/;
+  parseMeta = { sawDay: false, start: null };
+  const blocks = [];
+  let cur = null, curD = 1;
+  lines.forEach(raw => {
+    let l = raw;
+    const dm = l.match(DAY_RE);
+    if (dm) {
+      const num = dm[1] ? zhToNum(dm[1]) : +(dm[2] || dm[3]);
+      if (num >= 1 && num <= 99) {
+        curD = num; parseMeta.sawDay = true; cur = null;
+        let rest = dm[4] || '';
+        const dt = rest.match(DATE_RE);
+        if (dt && !parseMeta.start) {
+          const now = new Date();
+          let y = dt[1] ? +dt[1] : now.getFullYear();
+          let d0 = new Date(y, +dt[2] - 1, +dt[3]);
+          if (!dt[1] && (now - d0) > 60 * 86400000) d0 = new Date(y + 1, +dt[2] - 1, +dt[3]);
+          if (!isNaN(d0)) { d0.setDate(d0.getDate() - (num - 1)); parseMeta.start = ymd(d0); }
+        }
+        rest = rest.replace(DATE_RE, '').replace(/^[\s:：\-–—|｜、,，（()）週星期一二三四五六日天]*/, '');
+        if (!HEAD.test(rest)) return;   // 純標題行
+        l = rest;                       // 「第一天 08:00 熊本站」同一行
+      }
+    }
+    const m = l.match(HEAD);
+    if (m) {
+      cur = { day: curD, arrive: (+m[1]) * 60 + (+m[2]), end: m[3] != null ? (+m[3]) * 60 + (+m[4]) : null, head: m[5] || '', extra: [] };
+      blocks.push(cur);
+    } else if (cur) cur.extra.push(l);
+  });
+  // 完全沒有時間 → 每行一站
+  if (!blocks.length) {
+    lines.filter(l => !DAY_RE.test(l)).forEach((l, i) => blocks.push({ day: 1, arrive: 540 + i * 90, end: null, head: l, extra: [] }));
+  }
+  const out = blocks.map(b => {
+    const n = normNode({ arrive: b.arrive, stay: 0, day: b.day });
+    n._stay = null; n.note = ''; n.tNote = '';
+    const headParts = b.head.split(/\s*[|｜]\s*/);
+    let namePiece = headParts.shift() || '';
+    // 名稱片段中可能夾帶停留時間
+    const sm = namePiece.match(STAY_RE);
+    if (sm) { n._stay = parseDur(sm[2], sm[3]); namePiece = namePiece.replace(sm[0], ''); }
+    namePiece = stripLead(namePiece).replace(/[，,、]+$/, '');
+    const nm = splitName(namePiece);
+    n.name = nm.zh; n.nameJa = nm.ja; n.romaji = nm.ro;
+    if (nm.ja === '' && hasKana(nm.zh)) { n.nameJa = nm.zh; }
+    headParts.concat(b.extra).forEach(p => p.split(/\s*[|｜]\s*/).forEach(q => applyPiece(q, n)));
+    if (b.end != null && b.end > b.arrive) n._stay = b.end - b.arrive;
+    return n;
+  });
+  // 補齊預設值
+  out.forEach((n, i) => {
+    if (!n.name) n.name = n.nameJa || n.romaji || `第 ${i + 1} 站`;
+    const dj = dictLookup(n.name);
+    if (!n.nameJa && dj) n.nameJa = dj.ja;
+    if (!n.romaji && dj && (!n.nameJa || n.nameJa === dj.ja)) n.romaji = dj.ro;
+    if (!n.nameJa && /站$/.test(n.name)) n.nameJa = autoJa(n.name);
+    const hasLeg = n.tLine || n.tFrom || n.tTo || n.tMins;
+    if (hasLeg && i > 0 && out[i - 1].day === n.day) {
+      if (!n.tFrom) { n.tFrom = out[i - 1].name; n.tFromJa = out[i - 1].nameJa; }
+    }
+    if (hasLeg) {
+      if (!n.tTo) { n.tTo = n.name; n.tToJa = n.nameJa; }
+      if (n.tFrom && !n.tFromJa) n.tFromJa = autoJa(n.tFrom);
+      if (n.tTo && !n.tToJa) n.tToJa = autoJa(n.tTo);
+      if (n.tLine && !n.tLineJa && hasKana(n.tLine)) n.tLineJa = n.tLine;
+    }
+  });
+  out.forEach((n, i) => {
+    if (n._stay == null) {
+      const nx = out[i + 1] && out[i + 1].day === n.day ? out[i + 1] : null;
+      const guess = nx ? nx.arrive - n.arrive - (nx.tMins || 0) : 60;
+      n.stay = guess > 0 ? guess : 30;
+    } else n.stay = n._stay;
+    delete n._stay;
+  });
+  return out;
+}
+
+let parsed = [];
+let parseMeta = { sawDay: false, start: null };
+function doParse() {
+  const txt = $('#imp-text').value.trim();
+  if (!txt) { toast('請先貼上行程文字'); return; }
+  if (txt[0] === '{') { importBackupText(txt); return; }
+  parsed = parseItinerary(txt);
+  if (!parsed.length) { $('#imp-preview').innerHTML = '<div class="warn">找不到可解析的行程。</div>'; return; }
+  const days = [...new Set(parsed.map(n => n.day))];
+  let seq = 0, lastD = 0;
+  const startTxt = parseMeta.start ? (() => { const d = parseYMD(parseMeta.start); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; })() : '';
+  $('#imp-preview').innerHTML = `
+    <div class="sec-title" style="margin-top:6px">解析結果：${parseMeta.sawDay ? `${days.length} 天、` : ''}${parsed.length} 站</div>
+    ${startTxt ? `<div class="note" style="margin:0 0 8px">📅 從筆記讀到日期：第一天 = ${startTxt}，取代時會一併設定出發日。</div>` : ''}
+    ${!parseMeta.sawDay ? `<div class="note" style="margin:0 0 8px">筆記裡沒有「第一天／第二天」，附加時會放進目前顯示的第${zhNum(curDay)}天。</div>` : ''}
+    ${parsed.map(n => {
+      let head = '';
+      if (parseMeta.sawDay && n.day !== lastD) { lastD = n.day; seq = 0; head = `<div class="dayhead">🗓️ 第${zhNum(n.day)}天</div>`; }
+      const i = seq++;
+      return head + `
+      <div style="background:#0b0f14;border:1px solid #263241;border-radius:14px;padding:10px 12px;margin-bottom:8px">
+        <div class="flex items-center gap-2">
+          <span class="idx" style="width:26px;height:26px;font-size:14px">${i + 1}</span>
+          <span class="tabnum" style="font-weight:900;color:#fbbf24">${fmt(n.arrive)}–${fmt(n.arrive + n.stay)}</span>
+          <span style="font-weight:900;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</span>
+        </div>
+        <div style="font-size:14px;color:#67e8f9;margin-top:2px">${esc(n.nameJa)} ${n.romaji ? '/ ' + esc(n.romaji) : ''}</div>
+        ${(n.tLine || n.tFrom) ? `<div style="font-size:14px;color:#cbd5e1;margin-top:2px">${vehIcon(n.tLine)} ${esc(n.tFrom || '?')} → ${esc(n.tTo || '?')}${n.tLine ? '｜' + esc(n.tLine) : ''}${n.tMins ? '｜' + n.tMins + ' 分' : ''}</div>` : ''}
+        ${n.tNote ? `<div style="font-size:13px;color:#fde68a;margin-top:2px">⚠️ ${esc(n.tNote)}</div>` : ''}
+        ${n.note ? `<div style="font-size:13px;color:#94a3b8;margin-top:2px;white-space:pre-wrap">📝 ${esc(n.note)}</div>` : ''}
+      </div>`;
+    }).join('')}
+    <div class="grid grid-cols-2 gap-2" style="margin-top:6px">
+      <button class="press btn btn-sec" data-act="impAppend">➕ 附加到後面</button>
+      <button class="press btn btn-amb" data-act="impReplace">🔁 取代目前行程</button>
+    </div>`;
+  cacheTW();
+}
+
+/* ---------- 備份 ---------- */
+function backupText() { return JSON.stringify(S, null, 2); }
+function download(name, text, type) {
+  const blob = new Blob([text], { type: type || 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function importBackupText(txt) {
+  try {
+    const o = JSON.parse(txt);
+    if (!o || !Array.isArray(o.nodes)) throw new Error('格式不符');
+    if (!(await ask(`讀取備份：${o.nodes.length} 站。\n將取代目前所有資料，確定？`, '還原備份'))) return;
+    S = normState(o); save(); closeAllModals(); setDay(autoDay()); toast('✅ 備份已還原');
+  } catch (e) { toast('❌ 備份格式錯誤：' + e.message); }
+}
+
+/* ---------- 指路大卡 ---------- */
+let dirState = null, dirPhrase = 0, wakeLock = null;
+function vehWord(s) {
+  if (/バス|巴士|公車|bus/i.test(s)) return 'バス';
+  if (/JR|電車|列車|特急|新幹線|市電|鉄道|鐵/.test(s)) return '電車';
+  return 'バス';
+}
+function openDir(id, mode) {
+  const n = S.nodes.find(x => x.id === id); if (!n) return;
+  let dest, destJa, ro = '';
+  if (mode === 'node') { dest = n.name; destJa = n.nameJa || autoJa(n.name); ro = n.romaji; }
+  else { dest = n.tTo || n.name; destJa = n.tToJa || n.nameJa || autoJa(dest); const d = dictLookup(dest); ro = d ? d.ro : (n.tTo ? '' : n.romaji); }
+  dirState = { dest, destJa, ro, line: n.tLine, lineJa: n.tLineJa, from: n.tFrom, fromJa: n.tFromJa };
+  dirPhrase = mode === '2' ? 2 : 0;
+  renderDir();
+  $('#dir').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  try { if ('wakeLock' in navigator) navigator.wakeLock.request('screen').then(w => { wakeLock = w; }).catch(() => {}); } catch (e) {}
+}
+function renderDir() {
+  const d = dirState; if (!d) return;
+  const J = esc(d.destJa || d.dest);
+  const Z = esc(d.dest);
+  const veh = vehWord((d.line || '') + (d.lineJa || ''));
+  const P = [
+    { t: '到站提醒', ja: `${J}まで<br>行きたいです。<br>着いたら<br>教えてください。`, zh: `我要前往「${Z}」，到站時請提醒我，謝謝！` },
+    { t: '有到嗎？', ja: `この${veh}は<br>${J}に<br>行きますか？`, zh: `請問這班車會到「${Z}」嗎？` },
+    { t: '在哪搭車', ja: `${J}行きの<br>乗り場は<br>どこですか？`, zh: `請問往「${Z}」的乘車處在哪裡？` },
+    { t: '車資多少', ja: `${J}まで<br>いくらですか？`, zh: `請問到「${Z}」要多少錢？` }
+  ];
+  const p = P[dirPhrase];
+  $('#dir-body').innerHTML = `
+    <div class="dir-label">行き先 ／ 我要前往</div>
+    <div class="dir-dest">${J}</div>
+    ${d.ro ? `<div class="dir-roma">${esc(d.ro)}</div>` : ''}
+    ${d.destJa && d.destJa !== d.dest ? `<div class="dir-roma">（${Z}）</div>` : ''}
+    ${(d.lineJa || d.line) ? `<div><span class="dir-line">${vehIcon(d.line + d.lineJa)} ${esc(d.lineJa || d.line)}</span></div>` : ''}
+    <div class="dir-phrase">${p.ja}</div>
+    <div class="dir-zh">🇹🇼 ${p.zh}</div>
+    <div class="dir-foot">よろしくお願いします 🙇</div>`;
+  $('#dir-tabs').innerHTML = P.map((x, i) => `<button class="press${i === dirPhrase ? ' on' : ''}" data-act="dirPhrase" data-i="${i}">${x.t}</button>`).join('');
+}
+function closeDir() {
+  $('#dir').classList.add('hidden');
+  if (!document.querySelector('.modal:not(.hidden)')) document.body.style.overflow = '';
+  try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {}
+}
+
+/* ---------- Modal / Toast ---------- */
+function openModal(id) { $('#' + id).classList.remove('hidden'); document.body.style.overflow = 'hidden'; cacheTW(); }
+function closeModal(id) {
+  $('#' + id).classList.add('hidden');
+  if (!document.querySelector('.modal:not(.hidden)') && $('#dir').classList.contains('hidden')) document.body.style.overflow = '';
+}
+function closeAllModals() { document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden')); document.body.style.overflow = ''; }
+let askResolve = null;
+function ask(msg, okLabel, danger) {
+  return new Promise(res => {
+    if (askResolve) askResolve(false);
+    askResolve = res;
+    $('#ask-msg').textContent = msg;
+    const ok = $('#ask-ok');
+    ok.textContent = okLabel || '確定';
+    ok.className = 'press btn ' + (danger ? 'btn-dan' : 'btn-amb');
+    $('#m-ask').classList.remove('hidden');
+  });
+}
+function answerAsk(v) {
+  $('#m-ask').classList.add('hidden');
+  if (askResolve) { const r = askResolve; askResolve = null; r(v); }
+}
+let toastTimer = null, toastFn = null;
+function toast(msg, action) {
+  const t = $('#toast');
+  toastFn = action ? action.fn : null;
+  t.innerHTML = `<span style="flex:1;min-width:0">${esc(msg)}</span>${action ? `<button class="press" data-act="toastAct">${esc(action.label)}</button>` : ''}`;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.add('hidden'); toastFn = null; }, action ? 6000 : 2600);
+}
+
+/* ---------- 設定 ---------- */
+function fillSettings() {
+  $('#s-title').value = S.trip.title || '';
+  $('#s-date').value = S.trip.date || '';
+  $('#s-rate').value = S.settings.rate;
+  $('#s-budget').value = S.settings.budget;
+  $('#s-mode').value = S.settings.shiftMode;
+  $('#s-install').classList.toggle('hidden', !deferredPrompt);
+  $('#s-sw').textContent = swStatus;
+}
+function bindSettings() {
+  $('#s-title').addEventListener('input', e => { S.trip.title = e.target.value; save(); renderHeader(); });
+  $('#s-date').addEventListener('change', e => { S.trip.date = e.target.value; save(); setDay(autoDay(), true); });
+  $('#s-rate').addEventListener('change', e => {
+    const v = parseFloat(e.target.value);
+    if (v > 0) { S.settings.rate = v; save(); renderList(); toast('匯率已更新：1 JPY = ' + v + ' TWD'); }
+    else e.target.value = S.settings.rate;
+  });
+  $('#s-budget').addEventListener('change', e => { S.settings.budget = Math.max(0, Number(e.target.value) || 0); save(); });
+  $('#s-mode').addEventListener('change', e => { S.settings.shiftMode = e.target.value; save(); toast('順延方式已更新'); });
+  $('#file-in').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => importBackupText(String(r.result || ''));
+    r.readAsText(f); e.target.value = '';
+  });
+}
+
+/* ---------- 網路狀態 ---------- */
+function setNet() {
+  const on = navigator.onLine;
+  $('#net').innerHTML = `<span class="dot ${on ? 'on' : 'off'}"></span>${on ? '連線' : '離線'}`;
+}
+
+/* ---------- PWA：Service Worker / 安裝提示 ---------- */
+let deferredPrompt = null;
+let swStatus = '離線機制：localStorage（資料 + 樣式快取）已啟用。';
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; const b = $('#s-install'); if (b) b.classList.remove('hidden'); });
+window.addEventListener('appinstalled', () => { deferredPrompt = null; toast('🎉 已安裝到主畫面'); });
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  navigator.serviceWorker.register('./sw.js').then(() => {
+    swStatus = '離線機制：Service Worker 已啟用＋localStorage 快取。';
+  }).catch(() => {
+    swStatus = '提示：若將「sw.js」與本檔放在同一網址目錄，可再啟用 Service Worker 整頁快取（非必要）。';
+  });
+}
+
+/* ---------- 事件綁定 ---------- */
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, id = b.dataset.id;
+  switch (a) {
+    case 'dir': openDir(id, b.dataset.mode); break;
+    case 'dirClose': closeDir(); break;
+    case 'dirTheme': {
+      const d = $('#dir'); d.classList.toggle('bright');
+      $('#dir-theme').textContent = d.classList.contains('bright') ? '🌙 夜間模式' : '☀️ 強光模式';
+      break;
+    }
+    case 'dirPhrase': dirPhrase = +b.dataset.i; renderDir(); break;
+    case 'shift': shift(id, +b.dataset.d); break;
+    case 'edit': openEdit(id); break;
+    case 'add': openEdit(null); break;
+    case 'saveNode': saveNode(); break;
+    case 'delNode': delNode(); break;
+    case 'toggleExp': openExp.has(id) ? openExp.delete(id) : openExp.add(id); rerenderCard(id); break;
+    case 'cat': {
+      expCat[id] = b.dataset.cat;
+      b.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b));
+      break;
+    }
+    case 'addExp': addExp(id); break;
+    case 'delExp': if (await delExp(id, b.dataset.eid)) { rerenderCard(id); toast('已刪除'); } break;
+    case 'delExpA': if (await delExp(id, b.dataset.eid)) { renderAnalysis(); rerenderCard(id); toast('已刪除'); } break;
+    case 'askOk': answerAsk(true); break;
+    case 'askNo': answerAsk(false); break;
+    case 'openAna': renderAnalysis(); openModal('m-ana'); break;
+    case 'openImport': $('#imp-preview').innerHTML = ''; openModal('m-import'); break;
+    case 'openSet': fillSettings(); openModal('m-set'); break;
+    case 'close': closeModal(b.dataset.m); break;
+    case 'impSample': $('#imp-text').value = SAMPLE; break;
+    case 'parse': doParse(); break;
+    case 'impReplace': {
+      if (!parsed.length) return;
+      if (S.nodes.length && !(await ask('將取代目前全部行程（含記帳），確定？', '取代'))) return;
+      S.nodes = parsed; parsed = [];
+      sortNodes();
+      S.trip.days = Math.max(1, maxNodeDay());
+      if (parseMeta.start) S.trip.date = parseMeta.start;
+      closeModal('m-import'); save();
+      setDay(autoDay());
+      toast(`✅ 已匯入 ${dayCount()} 天、${S.nodes.length} 站` + (parseMeta.start ? `，出發日 ${dayLabelDate(1, true)}` : ''));
+      break;
+    }
+    case 'impAppend': {
+      if (!parsed.length) return;
+      const c = parsed.length;
+      if (!parseMeta.sawDay) parsed.forEach(n => { n.day = curDay; });
+      const firstDay = parsed[0].day;
+      S.nodes = S.nodes.concat(parsed); parsed = [];
+      sortNodes();
+      S.trip.days = Math.max(S.trip.days || 1, maxNodeDay());
+      closeModal('m-import'); save();
+      setDay(firstDay);
+      toast(`✅ 已附加 ${c} 站`);
+      break;
+    }
+    case 'day': setDay(+b.dataset.d); break;
+    case 'addDay': {
+      S.trip.days = dayCount() + 1; save();
+      setDay(S.trip.days);
+      toast(`已新增第${zhNum(S.trip.days)}天`);
+      break;
+    }
+    case 'delDay': {
+      if (dayNodes(curDay).length || curDay !== dayCount() || curDay === 1) return;
+      S.trip.days = Math.max(1, Math.max(maxNodeDay(), curDay - 1)); save();
+      setDay(S.trip.days);
+      toast('已移除空白的一天');
+      break;
+    }
+    case 'anaScope': anaScope = b.dataset.s; renderAnalysis(); break;
+    case 'top': window.scrollTo({ top: 0, behavior: 'smooth' }); break;
+    case 'now': sliderToNow(); break;
+    case 'jump': focusCard(id, true); break;
+    case 'jumpA': {
+      closeModal('m-ana');
+      const jn = S.nodes.find(x => x.id === id);
+      if (jn && jn.day !== curDay) setDay(jn.day);
+      setTimeout(() => focusCard(id, true), 80);
+      break;
+    }
+    case 'toastAct': if (toastFn) { const f = toastFn; toastFn = null; $('#toast').classList.add('hidden'); f(); } break;
+    case 'install':
+      if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.finally(() => { deferredPrompt = null; $('#s-install').classList.add('hidden'); }); }
+      break;
+    case 'export': download(`trip-backup-${(S.trip.date || todayStr()).replace(/-/g, '')}.json`, backupText()); break;
+    case 'copyBackup': {
+      const t = backupText();
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => toast('📋 已複製，可貼到記事本保存')).catch(() => fallbackCopy(t));
+      else fallbackCopy(t);
+      break;
+    }
+    case 'importFile': $('#file-in').click(); break;
+    case 'dlSW': download('sw.js', $('#sw-src').textContent.trim() + '\n', 'text/javascript'); break;
+    case 'resetDemo':
+      if (S.nodes.length && !(await ask('載入示範資料會覆蓋目前行程與記帳，確定？', '載入示範'))) return;
+      S = demoState(); save(); closeAllModals(); setDay(autoDay()); toast('已載入示範資料');
+      break;
+    case 'clearAll':
+      if (!(await ask('確定清空所有行程與記帳？\n此動作無法復原。', '全部清空', true))) return;
+      S.nodes = []; S.trip.days = 1; save(); closeAllModals(); setDay(1); toast('已清空');
+      break;
+  }
+});
+function fallbackCopy(t) {
+  const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('📋 已複製'); } catch (e) { toast('複製失敗，請改用匯出'); }
+  ta.remove();
+}
+
+// 金額即時換算台幣 + Enter 快速記帳
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.matches && t.matches('[data-exp-amt]')) {
+    const v = parseAmt(t.value);
+    const span = t.parentElement.querySelector('[data-exp-twd]');
+    if (span) span.textContent = '≈ ' + twd(v);
+  }
+});
+document.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key === 'Enter' && t.matches && t.matches('[data-exp-amt]')) { e.preventDefault(); addExp(t.dataset.id); }
+  if (e.key === 'Escape' && !$('#dir').classList.contains('hidden')) closeDir();
+});
+
+// Slider
+let rafSlider = 0;
+$('#slider').addEventListener('input', () => {
+  cancelAnimationFrame(rafSlider);
+  rafSlider = requestAnimationFrame(() => onSlider(true));
+});
+
+// 網路 / 視窗
+window.addEventListener('online', () => { setNet(); toast('🟢 已恢復連線'); });
+window.addEventListener('offline', () => { setNet(); toast('🔴 目前離線，資料仍會存在手機'); });
+window.addEventListener('resize', setHdrVar);
+// 從背景切回 App：若日期已變（例如隔天早上打開），自動跳到今天
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (todayStr() !== lastTodayStr) { lastTodayStr = todayStr(); setDay(autoDay()); } else updateLive();
+});
+
+// 防止 iOS 雙指縮放
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+/* ---------- 啟動 ---------- */
+(function init() {
+  const first = load();
+  bindSettings();
+  setNet();
+  lastTodayStr = todayStr();
+  setDay(autoDay());           // 依手機日期自動顯示當天行程
+  setInterval(updateLive, 20000);
+  setTimeout(setHdrVar, 300);
+  if (first) setTimeout(() => toast('👋 已載入「熊本・阿蘇」示範行程，可在 📥 匯入貼上你的筆記'), 600);
+  if (window.__TW_OFFLINE && !localStorage.getItem(TW_KEY)) {
+    setTimeout(() => toast('⚠️ 首次開啟需有網路，才能下載並快取版面樣式'), 1200);
+  }
+})();
+</script>
+</body>
+</html>

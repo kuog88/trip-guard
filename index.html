@@ -240,6 +240,24 @@
   .text-amber-300{color:#fcd34d}.text-cyan-300{color:#67e8f9}.text-sky-300{color:#7dd3fc}.text-emerald-300{color:#6ee7b7}.text-rose-300{color:#fda4af}
   .text-xs.text-slate-400{color:#94a3b8}
   details summary{cursor:pointer}
+
+  /* 每日分頁 */
+  .days { display:flex; gap:8px; overflow-x:auto; padding:8px 16px 2px; scroll-snap-type:x proximity; }
+  .dchip { position:relative; flex-shrink:0; min-width:78px; padding:6px 10px 7px; border-radius:14px; background:#111821; border:1px solid #263241; text-align:center; line-height:1.25; scroll-snap-align:start; }
+  .dchip b { display:block; font-size:16px; font-weight:900; color:#e5e7eb; }
+  .dchip span { display:block; font-size:12px; color:#94a3b8; font-weight:700; white-space:nowrap; }
+  .dchip.on { background:#22d3ee; border-color:#22d3ee; }
+  .dchip.on b, .dchip.on span { color:#0b0f14; }
+  .dchip.past b { color:#64748b; }
+  .dchip .today { position:absolute; top:-7px; right:-4px; background:#34d399; color:#052e1c; font-size:11px; font-weight:900; border-radius:99px; padding:1px 6px; }
+  .dchip.add { min-width:56px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#67e8f9; border-style:dashed; }
+  #preview-bar { margin:6px 16px 0; border-radius:12px; padding:7px 12px; background:#312e81; color:#e0e7ff; font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
+  #preview-bar.hidden { display:none !important; }
+  #preview-bar button { margin-left:auto; background:#e0e7ff; color:#312e81; border-radius:9px; padding:5px 10px; font-weight:900; white-space:nowrap; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#0b0f14; border:1px solid #263241; border-radius:12px; padding:4px; margin-top:12px; }
+  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:#94a3b8; }
+  .seg button.on { background:#22d3ee; color:#0b0f14; }
+  .dayhead { font-weight:900; color:#67e8f9; font-size:15px; margin:14px 0 6px; }
 </style>
 </head>
 
@@ -254,6 +272,8 @@
     <div id="net" class="net"></div>
     <button data-act="openAna" class="press hbtn">💰 <span id="hdr-total" class="tabnum">¥0</span></button>
   </div>
+  <div id="days" class="days hide-sb"></div>
+  <div id="preview-bar" class="hidden"></div>
   <div id="banner" class="mx-4 mt-2"></div>
   <div class="px-4 pt-2 pb-2">
     <div class="flex items-center gap-2 text-sm">
@@ -327,6 +347,7 @@
         <div><label class="fl">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
       </div>
       <div class="sec-title">⏱ 時間預算</div>
+      <label class="fl">哪一天</label><select id="f-day" class="inp"></select>
       <div class="grid grid-cols-2 gap-2">
         <div><label class="fl">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
         <div><label class="fl">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
@@ -358,7 +379,7 @@
 <!-- ========== 支出分析 Modal（全螢幕） ========== -->
 <div id="m-ana" class="modal hidden">
   <div class="sheet full safe-top safe-bottom">
-    <div class="sheet-h"><h2>💰 當日支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana">✕</button></div>
+    <div class="sheet-h"><h2 id="ana-title">💰 當日支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana">✕</button></div>
     <div id="ana-body" class="px-4 pb-10"></div>
   </div>
 </div>
@@ -370,7 +391,7 @@
     <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set">✕</button></div>
     <div class="px-4 pb-8">
       <label class="fl">行程標題</label><input id="s-title" class="inp">
-      <label class="fl">行程日期（當天才顯示即時倒數）</label><input id="s-date" type="date" class="inp">
+      <label class="fl">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
       <div class="grid grid-cols-2 gap-2">
         <div><label class="fl">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
         <div><label class="fl">當日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
@@ -438,8 +459,10 @@
 
 <!-- ========== Service Worker 原始碼（放到與 HTML 同目錄命名為 sw.js 即啟用） ========== -->
 <script type="text/plain" id="sw-src">
-// 行程守護 Service Worker：快取優先、背景更新
-const CACHE = 'trip-guard-v1';
+// 行程守護 Service Worker v2
+// 網頁本身：有網路時抓最新版（並更新快取），離線時用快取
+// 其他資源（Tailwind CDN 等）：快取優先、背景更新
+const CACHE = 'trip-guard-v2';
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'https://cdn.tailwindcss.com']).catch(() => {})));
@@ -448,12 +471,23 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(hit => {
-      const net = fetch(e.request).then(res => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).then(res => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        caches.open(CACHE).then(c => c.put('./', copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match('./', { ignoreSearch: true }).then(r => r || caches.match(req, { ignoreSearch: true })))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(req, { ignoreSearch: true }).then(hit => {
+      const net = fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
       }).catch(() => hit);
       return hit || net;
@@ -553,13 +587,17 @@ let S = null;
 const openExp = new Set();
 const expCat = {};
 let focusId = null;
+let curDay = 1;          // 目前顯示第幾天
+let anaScope = 'day';    // 支出分析範圍：day / all
+let lastTodayStr = '';   // 偵測跨日自動切換
 
 function normNode(o) {
   const n = Object.assign({
-    id: uid(), name: '', nameJa: '', romaji: '', arrive: 540, stay: 30,
+    id: uid(), day: 1, name: '', nameJa: '', romaji: '', arrive: 540, stay: 30,
     tFrom: '', tFromJa: '', tLine: '', tLineJa: '', tTo: '', tToJa: '', tMins: 0, tNote: '',
     note: '', expenses: []
   }, o || {});
+  n.day = Math.max(1, Math.min(99, Math.round(Number(n.day) || 1)));
   n.arrive = Math.max(0, Math.round(Number(n.arrive) || 0));
   n.stay = Math.max(0, Math.round(Number(n.stay) || 0));
   n.tMins = Math.max(0, Math.round(Number(n.tMins) || 0));
@@ -572,10 +610,12 @@ function normNode(o) {
 function normState(o) {
   const s = {
     v: 1,
-    trip: Object.assign({ title: '我的自由行', date: todayStr() }, (o && o.trip) || {}),
+    trip: Object.assign({ title: '我的自由行', date: todayStr(), days: 1 }, (o && o.trip) || {}),
     settings: Object.assign({ rate: 0.215, budget: 20000, shiftMode: 'all' }, (o && o.settings) || {}),
     nodes: ((o && Array.isArray(o.nodes)) ? o.nodes : []).map(normNode)
   };
+  s.trip.days = Math.max(1, Math.round(Number(s.trip.days) || 1));
+  s.nodes.sort((a, b) => a.day - b.day || a.arrive - b.arrive);
   s.settings.rate = Number(s.settings.rate) > 0 ? Number(s.settings.rate) : 0.215;
   s.settings.budget = Number(s.settings.budget) >= 0 ? Number(s.settings.budget) : 20000;
   if (!['all', 'stay'].includes(s.settings.shiftMode)) s.settings.shiftMode = 'all';
@@ -585,7 +625,7 @@ function normState(o) {
 function demoState() {
   const e = (item, cat, amt) => ({ id: uid(), item, cat, amt, ts: Date.now() });
   return normState({
-    trip: { title: '熊本・阿蘇火山一日遊', date: todayStr() },
+    trip: { title: '熊本・阿蘇 二日遊', date: todayStr(), days: 2 },
     settings: { rate: 0.215, budget: 20000, shiftMode: 'all' },
     nodes: [
       { name: '辛島町（飯店出發）', nameJa: '辛島町', romaji: 'Karashimachō', arrive: 470, stay: 10,
@@ -626,7 +666,25 @@ function demoState() {
         tTo: '熊本櫻町巴士總站', tToJa: '熊本桜町バスターミナル', tMins: 110,
         tNote: '上車抽整理券，下車時依號碼付款；「辛島町」或終點「熊本櫻町」下車皆可。',
         note: 'SAKURA MACHI 逛街，回飯店領行李。',
-        expenses: [e('橫斷巴士', 'transport', 2000)] }
+        expenses: [e('橫斷巴士', 'transport', 2000)] },
+      // ===== 第二天 =====
+      { day: 2, name: '熊本城', nameJa: '熊本城', romaji: 'Kumamoto-jō', arrive: 570, stay: 90,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '熊本城・市役所前', tToJa: '熊本城・市役所前', tMins: 5,
+        tNote: '在「熊本城・市役所前」下車，沿坡道步行約 10 分鐘到天守閣入口。',
+        note: '天守閣內有展示，城內步道多，穿好走的鞋。',
+        expenses: [] },
+      { day: 2, name: '櫻之馬場 城彩苑', nameJa: '桜の馬場 城彩苑', romaji: 'Sakuranobaba Jōsaien', arrive: 670, stay: 75,
+        tFrom: '熊本城', tFromJa: '熊本城', tLine: '步行', tLineJa: '徒歩', tTo: '櫻之馬場 城彩苑', tToJa: '桜の馬場 城彩苑', tMins: 10,
+        note: '午餐、買熊本熊周邊與伴手禮。', expenses: [] },
+      { day: 2, name: '水前寺成趣園', nameJa: '水前寺成趣園', romaji: 'Suizenji Jōjuen', arrive: 780, stay: 60,
+        tFrom: '熊本城・市役所前', tFromJa: '熊本城・市役所前', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '水前寺公園', tToJa: '水前寺公園', tMins: 20,
+        tNote: '在「水前寺公園」下車，步行約 3 分鐘。', note: '日式迴遊庭園，可在古今傳授之間喝抹茶。', expenses: [] },
+      { day: 2, name: '熊本機場', nameJa: '阿蘇くまもと空港', romaji: 'Aso Kumamoto Kūkō', arrive: 930, stay: 90,
+        tFrom: '熊本櫻町巴士總站', tFromJa: '熊本桜町バスターミナル', tLine: '機場利木津巴士', tLineJa: '空港リムジンバス',
+        tTo: '阿蘇熊本機場', tToJa: '阿蘇くまもと空港', tMins: 50,
+        tNote: '國際線航廈下車，班機前 2 小時抵達。', note: '退稅、託運行李。', expenses: [] }
     ]
   });
 }
@@ -666,22 +724,100 @@ function cacheTW() {
 const idxOf = id => S.nodes.findIndex(n => n.id === id);
 const nodeSum = n => n.expenses.reduce((a, e) => a + e.amt, 0);
 const totalSum = () => S.nodes.reduce((a, n) => a + nodeSum(n), 0);
-const isToday = () => S.trip.date === todayStr();
+const sortNodes = () => S.nodes.sort((a, b) => a.day - b.day || a.arrive - b.arrive);
+const dayNodes = d => S.nodes.filter(n => n.day === d);
+const daySum = d => dayNodes(d).reduce((a, n) => a + nodeSum(n), 0);
+const maxNodeDay = () => S.nodes.reduce((m, n) => Math.max(m, n.day), 0);
+const dayCount = () => Math.max(1, maxNodeDay(), S.trip.days || 1);
+const ZH = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+function zhNum(n) {
+  if (n <= 10) return ZH[n];
+  if (n < 20) return '十' + ZH[n - 10];
+  return ZH[Math.floor(n / 10)] + '十' + (n % 10 ? ZH[n % 10] : '');
+}
+function zhToNum(s) {
+  s = String(s).replace(/兩/g, '二');
+  if (/^\d+$/.test(s)) return +s;
+  const idx = c => ZH.indexOf(c);
+  if (s === '十') return 10;
+  if (s.length === 1) return idx(s);
+  if (s[0] === '十') return 10 + idx(s[1]);
+  if (s.length === 2 && s[1] === '十') return idx(s[0]) * 10;
+  if (s.length === 3 && s[1] === '十') return idx(s[0]) * 10 + idx(s[2]);
+  return NaN;
+}
+function parseYMD(str) {
+  const [y, m, d] = String(str || '').split('-').map(Number);
+  return (y && m && d) ? new Date(y, m - 1, d) : null;
+}
+function ymd(dt) { return dt.getFullYear() + '-' + pad(dt.getMonth() + 1) + '-' + pad(dt.getDate()); }
+function dayDate(d) {
+  const s = parseYMD(S.trip.date); if (!s) return '';
+  s.setDate(s.getDate() + d - 1); return ymd(s);
+}
+function dayLabelDate(d, withYear) {
+  const dt = parseYMD(dayDate(d)); if (!dt) return '';
+  const md = `${dt.getMonth() + 1}/${dt.getDate()}`;
+  return (withYear ? dt.getFullYear() + '/' : '') + md + `（${'日一二三四五六'[dt.getDay()]}）`;
+}
+// 依手機日期計算今天是第幾天（可能 <1 或 >天數）
+function todayDayNum() {
+  const s = parseYMD(S.trip.date), t = parseYMD(todayStr());
+  if (!s || !t) return null;
+  return Math.round((t - s) / 86400000) + 1;
+}
+// 開啟時自動選擇的天數：旅程中 → 今天；出發前 → 第一天；結束後 → 最後一天
+function autoDay() {
+  const t = todayDayNum(), n = dayCount();
+  if (t == null || t < 1) return 1;
+  return Math.min(t, n);
+}
+const isToday = () => dayDate(curDay) === todayStr();
 const vehIcon = s => /步行|徒步|走路|歩/.test(s) ? '🚶' : /計程|タクシー|taxi/i.test(s) ? '🚕' : /船|フェリー|渡輪/.test(s) ? '⛴️'
   : /JR|電車|列車|新幹線|特急|鐵|鉄|市電|線(?!.*バス)/.test(s) && !/巴士|バス|公車|bus/i.test(s) ? '🚆' : '🚌';
 
 /* ---------- Render：Header ---------- */
 function renderHeader() {
   $('#trip-title').textContent = S.trip.title || '我的自由行';
-  let ds = '';
-  if (S.trip.date) {
-    const [y, m, d] = S.trip.date.split('-').map(Number);
-    const dt = new Date(y, m - 1, d);
-    ds = `${y}/${pad(m)}/${pad(d)}（週${'日一二三四五六'[dt.getDay()]}）` + (isToday() ? ' · 今天' : '');
-  }
-  $('#trip-date').textContent = ds + ` · ${S.nodes.length} 站`;
-  $('#hdr-total').textContent = yen(totalSum());
+  const n = dayCount();
+  $('#trip-date').textContent = `第${zhNum(curDay)}天 / 共 ${n} 天 · ${dayLabelDate(curDay, true)}` +
+    (isToday() ? ' · 今天' : '') + ` · ${dayNodes(curDay).length} 站`;
+  $('#hdr-total').textContent = yen(daySum(curDay));
+  renderDays();
   setHdrVar();
+}
+function renderDays() {
+  const n = dayCount(), t = todayDayNum();
+  let h = '';
+  for (let d = 1; d <= n; d++) {
+    const cls = ['press', 'dchip', d === curDay ? 'on' : '', (t != null && d < t) ? 'past' : ''].join(' ');
+    h += `<button class="${cls}" data-act="day" data-d="${d}">
+      ${t === d ? '<em class="today" style="font-style:normal">今天</em>' : ''}
+      <b>第${zhNum(d)}天</b><span>${dayLabelDate(d) || '&nbsp;'}</span></button>`;
+  }
+  h += `<button class="press dchip add" data-act="addDay" aria-label="新增一天">＋</button>`;
+  const box = $('#days');
+  box.innerHTML = h;
+  const on = box.querySelector('.dchip.on');
+  if (on) { const l = on.offsetLeft - 16; if (l < box.scrollLeft || l + on.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = Math.max(0, l - 40); }
+  // 非今天 → 顯示「預覽中」提示列
+  const pb = $('#preview-bar');
+  const live = autoDay();
+  if (curDay !== live) {
+    pb.innerHTML = `👀 預覽第${zhNum(curDay)}天行程<button class="press" data-act="day" data-d="${live}">回到${t != null && t >= 1 && t <= n ? '今天' : '第' + zhNum(live) + '天'}</button>`;
+    pb.classList.remove('hidden');
+  } else pb.classList.add('hidden');
+}
+function setDay(d, keepScroll) {
+  curDay = Math.max(1, Math.min(dayCount(), d));
+  focusId = null; sliderTarget = null;
+  renderList();
+  const now = nowMin(), ns = dayNodes(curDay);
+  $('#slider').value = Math.min(1320, Math.max(360, isToday() ? now : (ns[0] ? ns[0].arrive : 480)));
+  onSlider(false);
+  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  focusId = null;
+  if (!keepScroll) window.scrollTo({ top: 0 });
 }
 function setHdrVar() {
   document.documentElement.style.setProperty('--hdr', $('#hdr').offsetHeight + 'px');
@@ -690,7 +826,22 @@ function setHdrVar() {
 /* ---------- Render：列表 ---------- */
 function renderList() {
   const list = $('#list');
-  if (!S.nodes.length) {
+  if (curDay > dayCount()) curDay = dayCount();
+  const ns = dayNodes(curDay);
+  if (S.nodes.length && !ns.length) {
+    const canDel = curDay === dayCount() && curDay > 1;
+    list.innerHTML = `
+      <div style="text-align:center;padding:50px 20px;color:#94a3b8">
+        <div style="font-size:52px">🗓️</div>
+        <div class="text-xl font-extrabold text-white" style="margin:10px 0">第${zhNum(curDay)}天還沒有行程</div>
+        <p style="margin:0 0 20px">${dayLabelDate(curDay, true)}　手動新增，或貼上含「第${zhNum(curDay)}天」的筆記。</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="press btn btn-sec" data-act="openImport">📥 貼上筆記</button>
+          <button class="press btn btn-pri" data-act="add">＋ 新增行程</button>
+        </div>
+        ${canDel ? `<button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="delDay">移除第${zhNum(curDay)}天</button>` : ''}
+      </div>`;
+  } else if (!S.nodes.length) {
     list.innerHTML = `
       <div style="text-align:center;padding:60px 20px;color:#94a3b8">
         <div style="font-size:56px">🗺️</div>
@@ -703,7 +854,7 @@ function renderList() {
         <button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="resetDemo">載入示範（熊本・阿蘇）</button>
       </div>`;
   } else {
-    list.innerHTML = S.nodes.map((n, i) => cardHTML(n, i)).join('');
+    list.innerHTML = ns.map((n, i) => cardHTML(n, i)).join('');
   }
   renderTicks();
   updateLive();
@@ -712,9 +863,10 @@ function renderList() {
 }
 
 function rerenderCard(id) {
-  const i = idxOf(id); if (i < 0) return;
+  const n = S.nodes.find(x => x.id === id); if (!n) return;
+  const i = dayNodes(n.day).indexOf(n);
   const el = document.getElementById('node-' + id);
-  if (el) el.outerHTML = cardHTML(S.nodes[i], i);
+  if (el) el.outerHTML = cardHTML(n, i);
   updateLive(); renderHeader(); cacheTW();
 }
 
@@ -815,7 +967,7 @@ function expRowHTML(e, nodeId, showNode) {
     <div class="catdot" style="background:${c.c}22;border:1px solid ${c.c}">${c.i}</div>
     <div class="flex-1 min-w-0">
       <div style="font-weight:800;font-size:16px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.item)}</div>
-      <div style="font-size:13px;color:#94a3b8">${c.n} · ${pad(d.getHours())}:${pad(d.getMinutes())}${node ? ' · 📍' + esc(node.name) : ''}</div>
+      <div style="font-size:13px;color:#94a3b8">${c.n} · ${pad(d.getHours())}:${pad(d.getMinutes())}${node ? ' · 📍' + (anaScope === 'all' ? `第${zhNum(node.day)}天 ` : '') + esc(node.name) : ''}</div>
     </div>
     <div style="text-align:right" class="tabnum">
       <div style="font-weight:900;font-size:16px;color:#fbbf24">${yen(e.amt)}</div>
@@ -827,9 +979,13 @@ function expRowHTML(e, nodeId, showNode) {
 
 /* ---------- 即時狀態（倒數） ---------- */
 function updateLive() {
+  // 跨過午夜 → 自動跳到新的「今天」
+  const ts = todayStr();
+  if (lastTodayStr && ts !== lastTodayStr) { lastTodayStr = ts; setDay(autoDay()); return; }
+  lastTodayStr = ts;
   const today = isToday();
   const now = nowMin();
-  const ns = S.nodes;
+  const ns = dayNodes(curDay);
   ns.forEach((n, i) => {
     const el = document.querySelector(`[data-live="${n.id}"]`);
     const card = document.getElementById('node-' + n.id);
@@ -860,10 +1016,13 @@ function updateLive() {
 
 function renderBanner(today, now) {
   const b = $('#banner');
-  const ns = S.nodes;
+  const ns = dayNodes(curDay);
   if (!ns.length) { b.innerHTML = ''; setHdrVar(); return; }
   if (!today) {
-    b.innerHTML = `<div class="banner" style="background:#111821;border:1px solid #263241;color:#94a3b8;font-size:14px">📅 非行程當天，倒數提示將於 ${esc(S.trip.date || '設定日期')} 啟動</div>`;
+    const t = todayDayNum();
+    const msg = (t != null && t > curDay) ? `第${zhNum(curDay)}天（${dayLabelDate(curDay)}）已經過去`
+      : `倒數提示將於 ${dayLabelDate(curDay, true)} 當天啟動`;
+    b.innerHTML = `<div class="banner" style="background:#111821;border:1px solid #263241;color:#94a3b8;font-size:14px">📅 ${esc(msg)}</div>`;
     setHdrVar(); return;
   }
   const cur = ns.find(n => now >= n.arrive && now < n.arrive + n.stay);
@@ -885,7 +1044,8 @@ function renderBanner(today, now) {
       <span style="font-size:13px;opacity:.85">${fmt(next.arrive)} 抵達</span></span>
       <span style="font-size:20px" class="tabnum">${durTxt(to)}</span></button>`;
   } else {
-    html = `<div class="banner" style="background:#1e1b4b;color:#c7d2fe">🎉 今日行程已全部完成，辛苦了！</div>`;
+    const nextDay = curDay < dayCount() ? `明天是第${zhNum(curDay + 1)}天，點上方分頁可先預覽。` : '整趟旅程到此結束！';
+    html = `<div class="banner" style="background:#1e1b4b;color:#c7d2fe">🎉 今日行程已全部完成，辛苦了！${nextDay}</div>`;
   }
   b.innerHTML = html;
   setHdrVar();
@@ -894,7 +1054,7 @@ function renderBanner(today, now) {
 /* ---------- 時間軸 Slider ---------- */
 function renderTicks() {
   const t = $('#ticks');
-  t.innerHTML = S.nodes.map(n => {
+  t.innerHTML = dayNodes(curDay).map(n => {
     const p = Math.min(100, Math.max(0, (n.arrive - 360) / 960 * 100));
     return `<span class="tick" style="left:${p}%"></span>`;
   }).join('');
@@ -903,11 +1063,12 @@ let sliderTarget = null;
 function onSlider(scroll) {
   const t = +$('#slider').value;
   $('#slider-label').textContent = fmtPlain(t);
-  if (!S.nodes.length) { $('#slider-target').textContent = ''; return; }
+  const ns = dayNodes(curDay);
+  if (!ns.length) { $('#slider-target').textContent = ''; return; }
   let idx = -1;
-  S.nodes.forEach((n, i) => { if (n.arrive <= t) idx = i; });
+  ns.forEach((n, i) => { if (n.arrive <= t) idx = i; });
   if (idx < 0) idx = 0;
-  const n = S.nodes[idx];
+  const n = ns[idx];
   const inside = t >= n.arrive && t < n.arrive + n.stay;
   $('#slider-target').textContent = (inside ? '📍 ' : '→ ') + n.name;
   if (n.id !== sliderTarget || scroll === 'force') {
@@ -932,19 +1093,20 @@ function sliderToNow() {
 
 /* ---------- 連鎖時間順延 ---------- */
 function shift(id, d) {
-  const i = idxOf(id); if (i < 0) return;
-  const snap = S.nodes.map(n => [n.id, n.arrive, n.stay]);
-  const n = S.nodes[i];
+  const n = S.nodes.find(x => x.id === id); if (!n) return;
+  const list = dayNodes(n.day);          // 只順延同一天的行程
+  const i = list.indexOf(n);
+  const snap = S.nodes.map(x => [x.id, x.arrive, x.stay]);
   let cnt = 0;
   if (S.settings.shiftMode === 'stay') {
     const old = n.stay;
     n.stay = Math.max(0, n.stay + d);
     const real = n.stay - old;
     if (real === 0) { toast('停留時間已為 0，無法再縮短'); return; }
-    for (let j = i + 1; j < S.nodes.length; j++) { S.nodes[j].arrive = Math.max(0, S.nodes[j].arrive + real); cnt++; }
+    for (let j = i + 1; j < list.length; j++) { list[j].arrive = Math.max(0, list[j].arrive + real); cnt++; }
   } else {
     if (n.arrive + d < 0) { toast('時間無法早於 00:00'); return; }
-    for (let j = i; j < S.nodes.length; j++) { S.nodes[j].arrive = Math.max(0, S.nodes[j].arrive + d); cnt++; }
+    for (let j = i; j < list.length; j++) { list[j].arrive = Math.max(0, list[j].arrive + d); cnt++; }
   }
   save(); renderList();
   focusCard(id, false);
@@ -985,20 +1147,43 @@ async function delExp(nodeId, eid) {
 
 /* ---------- 支出分析 ---------- */
 function renderAnalysis() {
-  const total = totalSum();
-  const budget = S.settings.budget || 0;
+  const isAll = anaScope === 'all';
+  const days = dayCount();
+  const scopeNodes = isAll ? S.nodes : dayNodes(curDay);
+  const total = scopeNodes.reduce((a, n) => a + nodeSum(n), 0);
+  const dayBudget = S.settings.budget || 0;
+  const budget = isAll ? dayBudget * days : dayBudget;
   const pct = budget > 0 ? total / budget * 100 : 0;
   const over = total - budget;
   const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#22c55e';
-  const byCat = CATS.map(c => ({ ...c, sum: S.nodes.reduce((a, n) => a + n.expenses.filter(e => e.cat === c.k).reduce((s, e) => s + e.amt, 0), 0) }))
+  const byCat = CATS.map(c => ({ ...c, sum: scopeNodes.reduce((a, n) => a + n.expenses.filter(e => e.cat === c.k).reduce((s, e) => s + e.amt, 0), 0) }))
     .sort((a, b) => b.sum - a.sum);
   const all = [];
-  S.nodes.forEach(n => n.expenses.forEach(e => all.push({ e, n })));
+  scopeNodes.forEach(n => n.expenses.forEach(e => all.push({ e, n })));
   all.sort((a, b) => b.e.ts - a.e.ts);
+  $('#ana-title').textContent = isAll ? '💰 全旅程支出分析' : `💰 第${zhNum(curDay)}天支出分析`;
+
+  // 各景點小計（全旅程時依天分組）
+  let nodeRows = '';
+  for (let d = 1; d <= days; d++) {
+    if (!isAll && d !== curDay) continue;
+    const dn = dayNodes(d);
+    if (isAll) nodeRows += `<div class="dayhead flex justify-between"><span>第${zhNum(d)}天 · ${dayLabelDate(d)}</span><span class="tabnum">${yen(daySum(d))}</span></div>`;
+    nodeRows += dn.map((n, i) => {
+      const s = nodeSum(n);
+      return `<button class="press w-full flex items-center justify-between" style="width:100%;padding:10px 0;border-bottom:1px solid #1f2a37;text-align:left" data-act="jumpA" data-id="${n.id}">
+        <span style="font-weight:800;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${esc(n.name)}</span>
+        <span class="tabnum" style="font-weight:900;color:${s ? '#fbbf24' : '#475569'};white-space:nowrap;margin-left:8px">${yen(s)}</span></button>`;
+    }).join('') || (isAll ? '<div style="color:#64748b;padding:6px 0">（沒有行程）</div>' : '');
+  }
 
   $('#ana-body').innerHTML = `
+    <div class="seg">
+      <button class="press${isAll ? '' : ' on'}" data-act="anaScope" data-s="day">第${zhNum(curDay)}天</button>
+      <button class="press${isAll ? ' on' : ''}" data-act="anaScope" data-s="all">全旅程（${days} 天）</button>
+    </div>
     <div style="margin-top:14px;background:linear-gradient(135deg,#164e63,#0b0f14);border:1px solid #155e75;border-radius:20px;padding:18px">
-      <div style="font-size:14px;font-weight:800;color:#a5f3fc">當日總花費</div>
+      <div style="font-size:14px;font-weight:800;color:#a5f3fc">${isAll ? '全旅程總花費' : `第${zhNum(curDay)}天總花費 · ${dayLabelDate(curDay)}`}</div>
       <div class="tabnum" style="font-size:44px;font-weight:900;color:#fff;line-height:1.1">${yen(total)}</div>
       <div class="tabnum" style="font-size:22px;font-weight:800;color:#fbbf24">≈ ${twd(total)}</div>
       <div style="font-size:13px;color:#94a3b8;margin-top:4px">${all.length} 筆 · 匯率 1 JPY = ${S.settings.rate} TWD</div>
@@ -1007,9 +1192,10 @@ function renderAnalysis() {
     <div class="sec-title">🎯 預算進度</div>
     <div style="background:#0b0f14;border:1px solid #263241;border-radius:16px;padding:14px">
       <div class="flex items-center gap-2">
-        <span style="font-weight:800;color:#94a3b8;white-space:nowrap">預算 ¥</span>
-        <input id="a-budget" class="inp tabnum" type="number" inputmode="numeric" step="500" value="${budget}" style="font-weight:900">
+        <span style="font-weight:800;color:#94a3b8;white-space:nowrap">每日預算 ¥</span>
+        <input id="a-budget" class="inp tabnum" type="number" inputmode="numeric" step="500" value="${dayBudget}" style="font-weight:900">
       </div>
+      ${isAll ? `<div style="font-size:13px;color:#94a3b8;margin-top:6px">全旅程預算 = 每日 ${yen(dayBudget)} × ${days} 天 = ${yen(budget)}</div>` : ''}
       <div class="bar" style="margin-top:12px;height:18px"><div style="width:${Math.min(100, pct)}%;background:${barColor}"></div></div>
       <div class="flex justify-between tabnum" style="margin-top:8px;font-weight:900">
         <span style="color:${barColor};font-size:20px">${budget > 0 ? pct.toFixed(1) + '%' : '未設定'}</span>
@@ -1038,14 +1224,7 @@ function renderAnalysis() {
     </div>` : `<div style="color:#64748b">尚無花費資料</div>`}
 
     <div class="sec-title">📍 各景點小計</div>
-    <div>
-      ${S.nodes.map((n, i) => {
-        const s = nodeSum(n);
-        return `<button class="press w-full flex items-center justify-between" style="width:100%;padding:10px 0;border-bottom:1px solid #1f2a37;text-align:left" data-act="jumpA" data-id="${n.id}">
-          <span style="font-weight:800;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${esc(n.name)}</span>
-          <span class="tabnum" style="font-weight:900;color:${s ? '#fbbf24' : '#475569'};white-space:nowrap;margin-left:8px">${yen(s)}</span></button>`;
-      }).join('')}
-    </div>
+    <div>${nodeRows || '<div style="color:#64748b">這一天沒有行程</div>'}</div>
 
     <div class="sec-title">🧾 流水帳（新 → 舊）</div>
     <div>${all.length ? all.map(x => expRowHTML(x.e, x.n.id, true)).join('') : '<div style="color:#64748b">尚無紀錄，請在景點卡片下方「記帳」新增。</div>'}</div>
@@ -1062,14 +1241,21 @@ function renderAnalysis() {
 const F = ['name', 'nameJa', 'romaji', 'tFrom', 'tFromJa', 'tLine', 'tLineJa', 'tTo', 'tToJa', 'tNote', 'note'];
 function openEdit(id) {
   const n = id ? S.nodes.find(x => x.id === id) : null;
-  const last = S.nodes[S.nodes.length - 1];
+  const dn = dayNodes(curDay);
+  const last = dn[dn.length - 1];
   const d = n || {
+    day: curDay,
     name: '', nameJa: '', romaji: '', arrive: last ? last.arrive + last.stay + 30 : 540, stay: 60,
     tFrom: last ? last.name : '', tFromJa: last ? last.nameJa : '', tLine: '', tLineJa: '', tTo: '', tToJa: '', tMins: 30, tNote: '', note: ''
   };
   $('#edit-title').textContent = n ? '✏️ 編輯行程' : '＋ 新增行程';
   $('#f-id').value = n ? n.id : '';
   F.forEach(k => { $('#f-' + k).value = d[k] || ''; });
+  const maxD = dayCount() + 1;
+  let opts = '';
+  for (let k = 1; k <= maxD; k++) opts += `<option value="${k}">第${zhNum(k)}天${dayLabelDate(k) ? '　' + dayLabelDate(k) : ''}${k === maxD ? '（新增一天）' : ''}</option>`;
+  $('#f-day').innerHTML = opts;
+  $('#f-day').value = String(d.day || curDay);
   $('#f-arrive').value = fmtPlain(d.arrive);
   $('#f-stay').value = d.stay;
   $('#f-tMins').value = d.tMins || '';
@@ -1087,28 +1273,35 @@ function saveNode() {
   const data = {};
   F.forEach(k => { data[k] = $('#f-' + k).value.trim(); });
   data.arrive = arrive;
+  data.day = Math.max(1, parseInt($('#f-day').value, 10) || curDay);
   data.stay = Math.max(0, parseInt($('#f-stay').value, 10) || 0);
   data.tMins = Math.max(0, parseInt($('#f-tMins').value, 10) || 0);
   if (!data.nameJa) { const dj = dictLookup(name); if (dj) { data.nameJa = dj.ja; if (!data.romaji) data.romaji = dj.ro; } }
   if (data.tFrom && !data.tFromJa) data.tFromJa = autoJa(data.tFrom);
   if (data.tTo && !data.tToJa) data.tToJa = autoJa(data.tTo);
 
+  let targetDay = data.day;
   if (id) {
-    const i = idxOf(id); const n = S.nodes[i];
+    const n = S.nodes.find(x => x.id === id);
+    const sameDay = dayNodes(n.day);
+    const after = sameDay.slice(sameDay.indexOf(n) + 1);   // 同一天、在它之後的行程
     const oldDep = n.arrive + n.stay;
+    const dayChanged = n.day !== data.day;
     Object.assign(n, data);
     const delta = (n.arrive + n.stay) - oldDep;
-    if ($('#f-chain').checked && delta !== 0) {
-      for (let j = i + 1; j < S.nodes.length; j++) S.nodes[j].arrive = Math.max(0, S.nodes[j].arrive + delta);
-      toast(`已儲存，後續 ${S.nodes.length - i - 1} 站連動 ${delta > 0 ? '+' : ''}${delta} 分`);
-    } else toast('已儲存');
+    if ($('#f-chain').checked && delta !== 0 && !dayChanged && after.length) {
+      after.forEach(x => { x.arrive = Math.max(0, x.arrive + delta); });
+      toast(`已儲存，同日後續 ${after.length} 站連動 ${delta > 0 ? '+' : ''}${delta} 分`);
+    } else toast(dayChanged ? `已移到第${zhNum(data.day)}天` : '已儲存');
   } else {
     const n = normNode(Object.assign({ id: uid() }, data));
     S.nodes.push(n);
-    toast('已新增行程');
+    toast(`已新增到第${zhNum(data.day)}天`);
     focusId = n.id;
   }
-  S.nodes.sort((a, b) => a.arrive - b.arrive);
+  if (targetDay > (S.trip.days || 1)) S.trip.days = targetDay;
+  sortNodes();
+  curDay = targetDay;
   save(); closeModal('m-edit'); renderList();
   const fid = id || focusId;
   if (fid) setTimeout(() => focusCard(fid, true), 60);
@@ -1121,7 +1314,8 @@ async function delNode() {
 }
 
 /* ---------- 文字解析器 ---------- */
-const SAMPLE = `08:00 辛島町 / Karashimachō
+const SAMPLE = `第一天 11/3
+08:00 辛島町 / Karashimachō
 停留 10 分
 📝 飯店退房、寄放行李
 
@@ -1146,7 +1340,17 @@ const SAMPLE = `08:00 辛島町 / Karashimachō
 下車：草千里
 車程：10 分
 自由活動 1.5 小時
-📝 午餐赤牛丼、騎馬`;
+📝 午餐赤牛丼、騎馬
+
+第二天
+09:30 熊本城
+🚋 辛島町 → 熊本城・市役所前（熊本市電）5 分
+停留 90 分
+
+11:20 水前寺成趣園
+🚋 熊本城・市役所前 → 水前寺公園（熊本市電）20 分
+停留 60 分
+備註：喝抹茶`;
 
 function splitName(s) {
   const r = { zh: '', ja: '', ro: '' };
@@ -1236,21 +1440,45 @@ function applyPiece(p, n) {
 function parseItinerary(text) {
   const lines = text.replace(/\r/g, '').split('\n').map(l => l.trim()).filter(Boolean);
   const HEAD = /^[\s\-*•・#>]*(?:\d{1,2}[.)、]\s*)?(?:第?\s*\d+\s*站\s*[:：]?\s*)?(\d{1,2})[:：](\d{2})(?:\s*[-~～–—至到]\s*(\d{1,2})[:：](\d{2}))?\s*(.*)$/;
+  // 「第一天」「第 2 天」「Day 3」「D4」，後面可接日期（11/3、2026/11/3、11月3日）
+  const DAY_RE = /^[\s#*\-•・>【\[（(]*(?:第\s*([一二三四五六七八九十兩\d]{1,3})\s*[天日]|day\s*(\d{1,2})|D(\d{1,2})(?![\d:：]))\s*[】\]）)]?\s*(.*)$/i;
+  const DATE_RE = /(?:(\d{4})\s*[\/\-.年]\s*)?(\d{1,2})\s*[\/月]\s*(\d{1,2})\s*日?/;
+  parseMeta = { sawDay: false, start: null };
   const blocks = [];
-  let cur = null;
-  lines.forEach(l => {
+  let cur = null, curD = 1;
+  lines.forEach(raw => {
+    let l = raw;
+    const dm = l.match(DAY_RE);
+    if (dm) {
+      const num = dm[1] ? zhToNum(dm[1]) : +(dm[2] || dm[3]);
+      if (num >= 1 && num <= 99) {
+        curD = num; parseMeta.sawDay = true; cur = null;
+        let rest = dm[4] || '';
+        const dt = rest.match(DATE_RE);
+        if (dt && !parseMeta.start) {
+          const now = new Date();
+          let y = dt[1] ? +dt[1] : now.getFullYear();
+          let d0 = new Date(y, +dt[2] - 1, +dt[3]);
+          if (!dt[1] && (now - d0) > 60 * 86400000) d0 = new Date(y + 1, +dt[2] - 1, +dt[3]);
+          if (!isNaN(d0)) { d0.setDate(d0.getDate() - (num - 1)); parseMeta.start = ymd(d0); }
+        }
+        rest = rest.replace(DATE_RE, '').replace(/^[\s:：\-–—|｜、,，（()）週星期一二三四五六日天]*/, '');
+        if (!HEAD.test(rest)) return;   // 純標題行
+        l = rest;                       // 「第一天 08:00 熊本站」同一行
+      }
+    }
     const m = l.match(HEAD);
     if (m) {
-      cur = { arrive: (+m[1]) * 60 + (+m[2]), end: m[3] != null ? (+m[3]) * 60 + (+m[4]) : null, head: m[5] || '', extra: [] };
+      cur = { day: curD, arrive: (+m[1]) * 60 + (+m[2]), end: m[3] != null ? (+m[3]) * 60 + (+m[4]) : null, head: m[5] || '', extra: [] };
       blocks.push(cur);
     } else if (cur) cur.extra.push(l);
   });
   // 完全沒有時間 → 每行一站
   if (!blocks.length) {
-    lines.forEach((l, i) => blocks.push({ arrive: 540 + i * 90, end: null, head: l, extra: [] }));
+    lines.filter(l => !DAY_RE.test(l)).forEach((l, i) => blocks.push({ day: 1, arrive: 540 + i * 90, end: null, head: l, extra: [] }));
   }
   const out = blocks.map(b => {
-    const n = normNode({ arrive: b.arrive, stay: 0 });
+    const n = normNode({ arrive: b.arrive, stay: 0, day: b.day });
     n._stay = null; n.note = ''; n.tNote = '';
     const headParts = b.head.split(/\s*[|｜]\s*/);
     let namePiece = headParts.shift() || '';
@@ -1273,7 +1501,7 @@ function parseItinerary(text) {
     if (!n.romaji && dj && (!n.nameJa || n.nameJa === dj.ja)) n.romaji = dj.ro;
     if (!n.nameJa && /站$/.test(n.name)) n.nameJa = autoJa(n.name);
     const hasLeg = n.tLine || n.tFrom || n.tTo || n.tMins;
-    if (hasLeg && i > 0) {
+    if (hasLeg && i > 0 && out[i - 1].day === n.day) {
       if (!n.tFrom) { n.tFrom = out[i - 1].name; n.tFromJa = out[i - 1].nameJa; }
     }
     if (hasLeg) {
@@ -1285,7 +1513,7 @@ function parseItinerary(text) {
   });
   out.forEach((n, i) => {
     if (n._stay == null) {
-      const nx = out[i + 1];
+      const nx = out[i + 1] && out[i + 1].day === n.day ? out[i + 1] : null;
       const guess = nx ? nx.arrive - n.arrive - (nx.tMins || 0) : 60;
       n.stay = guess > 0 ? guess : 30;
     } else n.stay = n._stay;
@@ -1295,15 +1523,25 @@ function parseItinerary(text) {
 }
 
 let parsed = [];
+let parseMeta = { sawDay: false, start: null };
 function doParse() {
   const txt = $('#imp-text').value.trim();
   if (!txt) { toast('請先貼上行程文字'); return; }
   if (txt[0] === '{') { importBackupText(txt); return; }
   parsed = parseItinerary(txt);
   if (!parsed.length) { $('#imp-preview').innerHTML = '<div class="warn">找不到可解析的行程。</div>'; return; }
+  const days = [...new Set(parsed.map(n => n.day))];
+  let seq = 0, lastD = 0;
+  const startTxt = parseMeta.start ? (() => { const d = parseYMD(parseMeta.start); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; })() : '';
   $('#imp-preview').innerHTML = `
-    <div class="sec-title" style="margin-top:6px">解析結果：${parsed.length} 站</div>
-    ${parsed.map((n, i) => `
+    <div class="sec-title" style="margin-top:6px">解析結果：${parseMeta.sawDay ? `${days.length} 天、` : ''}${parsed.length} 站</div>
+    ${startTxt ? `<div class="note" style="margin:0 0 8px">📅 從筆記讀到日期：第一天 = ${startTxt}，取代時會一併設定出發日。</div>` : ''}
+    ${!parseMeta.sawDay ? `<div class="note" style="margin:0 0 8px">筆記裡沒有「第一天／第二天」，附加時會放進目前顯示的第${zhNum(curDay)}天。</div>` : ''}
+    ${parsed.map(n => {
+      let head = '';
+      if (parseMeta.sawDay && n.day !== lastD) { lastD = n.day; seq = 0; head = `<div class="dayhead">🗓️ 第${zhNum(n.day)}天</div>`; }
+      const i = seq++;
+      return head + `
       <div style="background:#0b0f14;border:1px solid #263241;border-radius:14px;padding:10px 12px;margin-bottom:8px">
         <div class="flex items-center gap-2">
           <span class="idx" style="width:26px;height:26px;font-size:14px">${i + 1}</span>
@@ -1314,7 +1552,8 @@ function doParse() {
         ${(n.tLine || n.tFrom) ? `<div style="font-size:14px;color:#cbd5e1;margin-top:2px">${vehIcon(n.tLine)} ${esc(n.tFrom || '?')} → ${esc(n.tTo || '?')}${n.tLine ? '｜' + esc(n.tLine) : ''}${n.tMins ? '｜' + n.tMins + ' 分' : ''}</div>` : ''}
         ${n.tNote ? `<div style="font-size:13px;color:#fde68a;margin-top:2px">⚠️ ${esc(n.tNote)}</div>` : ''}
         ${n.note ? `<div style="font-size:13px;color:#94a3b8;margin-top:2px;white-space:pre-wrap">📝 ${esc(n.note)}</div>` : ''}
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     <div class="grid grid-cols-2 gap-2" style="margin-top:6px">
       <button class="press btn btn-sec" data-act="impAppend">➕ 附加到後面</button>
       <button class="press btn btn-amb" data-act="impReplace">🔁 取代目前行程</button>
@@ -1336,7 +1575,7 @@ async function importBackupText(txt) {
     const o = JSON.parse(txt);
     if (!o || !Array.isArray(o.nodes)) throw new Error('格式不符');
     if (!(await ask(`讀取備份：${o.nodes.length} 站。\n將取代目前所有資料，確定？`, '還原備份'))) return;
-    S = normState(o); save(); closeAllModals(); renderList(); toast('✅ 備份已還原');
+    S = normState(o); save(); closeAllModals(); setDay(autoDay()); toast('✅ 備份已還原');
   } catch (e) { toast('❌ 備份格式錯誤：' + e.message); }
 }
 
@@ -1433,7 +1672,7 @@ function fillSettings() {
 }
 function bindSettings() {
   $('#s-title').addEventListener('input', e => { S.trip.title = e.target.value; save(); renderHeader(); });
-  $('#s-date').addEventListener('change', e => { S.trip.date = e.target.value; save(); renderHeader(); updateLive(); });
+  $('#s-date').addEventListener('change', e => { S.trip.date = e.target.value; save(); setDay(autoDay(), true); });
   $('#s-rate').addEventListener('change', e => {
     const v = parseFloat(e.target.value);
     if (v > 0) { S.settings.rate = v; save(); renderList(); toast('匯率已更新：1 JPY = ' + v + ' TWD'); }
@@ -1507,20 +1746,52 @@ document.addEventListener('click', async e => {
       if (!parsed.length) return;
       if (S.nodes.length && !(await ask('將取代目前全部行程（含記帳），確定？', '取代'))) return;
       S.nodes = parsed; parsed = [];
-      save(); closeModal('m-import'); renderList(); window.scrollTo({ top: 0 }); toast(`✅ 已匯入 ${S.nodes.length} 站`);
+      sortNodes();
+      S.trip.days = Math.max(1, maxNodeDay());
+      if (parseMeta.start) S.trip.date = parseMeta.start;
+      closeModal('m-import'); save();
+      setDay(autoDay());
+      toast(`✅ 已匯入 ${dayCount()} 天、${S.nodes.length} 站` + (parseMeta.start ? `，出發日 ${dayLabelDate(1, true)}` : ''));
       break;
     }
     case 'impAppend': {
       if (!parsed.length) return;
       const c = parsed.length;
-      S.nodes = S.nodes.concat(parsed).sort((x, y) => x.arrive - y.arrive); parsed = [];
-      save(); closeModal('m-import'); renderList(); toast(`✅ 已附加 ${c} 站`);
+      if (!parseMeta.sawDay) parsed.forEach(n => { n.day = curDay; });
+      const firstDay = parsed[0].day;
+      S.nodes = S.nodes.concat(parsed); parsed = [];
+      sortNodes();
+      S.trip.days = Math.max(S.trip.days || 1, maxNodeDay());
+      closeModal('m-import'); save();
+      setDay(firstDay);
+      toast(`✅ 已附加 ${c} 站`);
       break;
     }
+    case 'day': setDay(+b.dataset.d); break;
+    case 'addDay': {
+      S.trip.days = dayCount() + 1; save();
+      setDay(S.trip.days);
+      toast(`已新增第${zhNum(S.trip.days)}天`);
+      break;
+    }
+    case 'delDay': {
+      if (dayNodes(curDay).length || curDay !== dayCount() || curDay === 1) return;
+      S.trip.days = Math.max(1, Math.max(maxNodeDay(), curDay - 1)); save();
+      setDay(S.trip.days);
+      toast('已移除空白的一天');
+      break;
+    }
+    case 'anaScope': anaScope = b.dataset.s; renderAnalysis(); break;
     case 'top': window.scrollTo({ top: 0, behavior: 'smooth' }); break;
     case 'now': sliderToNow(); break;
     case 'jump': focusCard(id, true); break;
-    case 'jumpA': closeModal('m-ana'); setTimeout(() => focusCard(id, true), 80); break;
+    case 'jumpA': {
+      closeModal('m-ana');
+      const jn = S.nodes.find(x => x.id === id);
+      if (jn && jn.day !== curDay) setDay(jn.day);
+      setTimeout(() => focusCard(id, true), 80);
+      break;
+    }
     case 'toastAct': if (toastFn) { const f = toastFn; toastFn = null; $('#toast').classList.add('hidden'); f(); } break;
     case 'install':
       if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.finally(() => { deferredPrompt = null; $('#s-install').classList.add('hidden'); }); }
@@ -1536,11 +1807,11 @@ document.addEventListener('click', async e => {
     case 'dlSW': download('sw.js', $('#sw-src').textContent.trim() + '\n', 'text/javascript'); break;
     case 'resetDemo':
       if (S.nodes.length && !(await ask('載入示範資料會覆蓋目前行程與記帳，確定？', '載入示範'))) return;
-      S = demoState(); save(); closeAllModals(); renderList(); window.scrollTo({ top: 0 }); toast('已載入示範資料');
+      S = demoState(); save(); closeAllModals(); setDay(autoDay()); toast('已載入示範資料');
       break;
     case 'clearAll':
       if (!(await ask('確定清空所有行程與記帳？\n此動作無法復原。', '全部清空', true))) return;
-      S.nodes = []; save(); closeAllModals(); renderList(); toast('已清空');
+      S.nodes = []; S.trip.days = 1; save(); closeAllModals(); setDay(1); toast('已清空');
       break;
   }
 });
@@ -1577,7 +1848,11 @@ $('#slider').addEventListener('input', () => {
 window.addEventListener('online', () => { setNet(); toast('🟢 已恢復連線'); });
 window.addEventListener('offline', () => { setNet(); toast('🔴 目前離線，資料仍會存在手機'); });
 window.addEventListener('resize', setHdrVar);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) updateLive(); });
+// 從背景切回 App：若日期已變（例如隔天早上打開），自動跳到今天
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (todayStr() !== lastTodayStr) { lastTodayStr = todayStr(); setDay(autoDay()); } else updateLive();
+});
 
 // 防止 iOS 雙指縮放
 document.addEventListener('gesturestart', e => e.preventDefault());
@@ -1587,12 +1862,8 @@ document.addEventListener('gesturestart', e => e.preventDefault());
   const first = load();
   bindSettings();
   setNet();
-  renderList();
-  const now = nowMin();
-  $('#slider').value = Math.min(1320, Math.max(360, isToday() ? now : (S.nodes[0] ? S.nodes[0].arrive : 480)));
-  onSlider(false);
-  focusId = null;
-  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  lastTodayStr = todayStr();
+  setDay(autoDay());           // 依手機日期自動顯示當天行程
   setInterval(updateLive, 20000);
   setTimeout(setHdrVar, 300);
   if (first) setTimeout(() => toast('👋 已載入「熊本・阿蘇」示範行程，可在 📥 匯入貼上你的筆記'), 600);
