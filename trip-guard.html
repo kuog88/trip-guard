@@ -3,17 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="行程守護">
 <meta name="application-name" content="行程守護">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#2b2622">
 <meta name="format-detection" content="telephone=no">
-<title>行程守護 · 離線旅遊助手</title>
+<title>行程守護 · 旅の手帖</title>
 <link rel="manifest" id="manifest-link" href="data:application/manifest+json,{}">
 <link rel="apple-touch-icon" id="apple-icon" href="">
 <link rel="icon" id="fav-icon" href="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="font-css" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Zen+Maru+Gothic:wght@500;700&display=swap">
 
 <!-- ========== PWA：Data URI Manifest + 動態產生 App 圖示 ========== -->
 <script>
@@ -21,42 +25,35 @@
   function makeIcon(size) {
     try {
       var c = document.createElement('canvas'); c.width = c.height = size;
-      var x = c.getContext('2d');
-      var g = x.createLinearGradient(0, 0, size, size);
-      g.addColorStop(0, '#0e7490'); g.addColorStop(1, '#0b0f14');
-      x.fillStyle = g; x.fillRect(0, 0, size, size);
-      // 火山
-      x.fillStyle = '#fbbf24';
-      x.beginPath();
-      x.moveTo(size * .10, size * .80); x.lineTo(size * .38, size * .40);
-      x.lineTo(size * .46, size * .46); x.lineTo(size * .54, size * .46);
-      x.lineTo(size * .62, size * .40); x.lineTo(size * .90, size * .80);
-      x.closePath(); x.fill();
-      // 噴煙
-      x.fillStyle = 'rgba(255,255,255,.9)';
-      [[.50, .33, .07], [.58, .24, .085], [.68, .16, .07]].forEach(function (p) {
-        x.beginPath(); x.arc(size * p[0], size * p[1], size * p[2], 0, Math.PI * 2); x.fill();
-      });
-      // 時鐘
-      x.strokeStyle = '#22d3ee'; x.lineWidth = size * .035;
-      x.beginPath(); x.arc(size * .24, size * .24, size * .12, 0, Math.PI * 2); x.stroke();
-      x.beginPath(); x.moveTo(size * .24, size * .24); x.lineTo(size * .24, size * .16);
-      x.moveTo(size * .24, size * .24); x.lineTo(size * .30, size * .27); x.stroke();
+      var x = c.getContext('2d'), s = size;
+      // 和紙底
+      x.fillStyle = '#f5efe2'; x.fillRect(0, 0, s, s);
+      x.fillStyle = 'rgba(133,122,107,.25)';
+      for (var gx = s * .08; gx < s; gx += s * .1) for (var gy = s * .08; gy < s; gy += s * .1) { x.beginPath(); x.arc(gx, gy, s * .008, 0, 7); x.fill(); }
+      // 朱色太陽
+      x.fillStyle = '#c0432c'; x.beginPath(); x.arc(s * .70, s * .30, s * .12, 0, 7); x.fill();
+      // 藍色山線
+      x.strokeStyle = '#2f4f7a'; x.lineWidth = s * .06; x.lineJoin = 'round'; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(s * .12, s * .78); x.lineTo(s * .38, s * .44); x.lineTo(s * .47, s * .52);
+      x.lineTo(s * .56, s * .50); x.lineTo(s * .88, s * .78); x.stroke();
+      // 紙膠帶
+      x.fillStyle = 'rgba(224,165,38,.75)'; x.save(); x.translate(s * .22, s * .16); x.rotate(-.35);
+      x.fillRect(-s * .16, -s * .05, s * .32, s * .1); x.restore();
       return c.toDataURL('image/png');
     } catch (e) { return ''; }
   }
   var i180 = makeIcon(180), i192 = makeIcon(192), i512 = makeIcon(512);
   var base = location.href.split('#')[0].split('?')[0];
   var manifest = {
-    name: '行程守護・離線旅遊助手',
+    name: '行程守護・旅の手帖',
     short_name: '行程守護',
     description: '自由行時間預算管理與離線記帳',
     start_url: base,
     scope: base.replace(/[^\/]*$/, ''),
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#0b0f14',
-    theme_color: '#0b0f14',
+    background_color: '#f5efe2',
+    theme_color: '#2b2622',
     icons: [
       { src: i192, sizes: '192x192', type: 'image/png' },
       { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
@@ -69,239 +66,319 @@
 })();
 </script>
 
-<!-- ========== Tailwind CDN（連線時載入，並把產生的 CSS 快取到 localStorage 供離線使用） ========== -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  if (typeof tailwind !== 'undefined') {
-    tailwind.config = { theme: { extend: {} } };
-    window.__TW_OFFLINE = false;
-  } else {
-    // 離線且 CDN 無法載入 → 套用上次快取的 Tailwind CSS
-    window.__TW_OFFLINE = true;
-    try {
-      var cached = localStorage.getItem('tg_tw_css');
-      if (cached) {
-        var st = document.createElement('style');
-        st.id = 'tw-cache'; st.textContent = cached;
-        document.head.appendChild(st);
-      }
-    } catch (e) {}
-  }
-</script>
-
-<!-- ========== App 自有樣式（不依賴 Tailwind，離線也保證可讀） ========== -->
+<!-- ========== 樣式：日式文青手帳風（全部內嵌，不依賴外部 CSS 框架，斷網也完整） ========== -->
 <style id="app-css">
-  :root { --bg:#0b0f14; --card:#141a22; --line:#263241; --hdr:220px; }
-  * { box-sizing: border-box; }
-  html, body { background: var(--bg); color: #e5e7eb; margin: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Microsoft JhengHei", sans-serif;
-    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-    overscroll-behavior-y: none; font-size: 16px; line-height: 1.45;
-    -webkit-text-size-adjust: 100%;
+  /* 版面概念：方格和紙筆記本，左側一條「路線軸」把每一站像 Google 地圖大眾運輸那樣串起來 */
+  :root {
+    color-scheme: light;
+    --paper:#f5efe2; --paper2:#ece4d2; --card:#fffcf4; --dot:rgba(133,122,107,.22);
+    --ink:#2b2622; --ink2:#574f45; --ink3:#7f7466; --ink4:#b3a895;
+    --line:#ddd2bd; --line2:#e9e1cf;
+    --ai:#2f4f7a; --ai-pale:#e2e8f0;          /* 藍 */
+    --shu:#c0432c; --shu-pale:#f6e2db;        /* 朱 */
+    --matcha:#557636; --matcha-pale:#e4ecd5;  /* 抹茶 */
+    --yama:#e0a526; --tape:rgba(224,165,38,.42); --tape2:rgba(47,79,122,.18);
+    --money:#8a5a12; --warn-bg:#fbefd2; --warn-ink:#6b4708;
+    --m-train:#2f4f7a; --m-tram:#2b7a68; --m-bus:#c0432c; --m-walk:#9a8f7f; --m-other:#7a5c9a;
+    --f-hand:"Klee One","Hiragino Maru Gothic ProN","PingFang TC","Noto Sans TC","Microsoft JhengHei",cursive;
+    --f-num:"Zen Maru Gothic","Hiragino Maru Gothic ProN","PingFang TC",ui-rounded,system-ui,sans-serif;
+    --f-body:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Hiragino Sans","Microsoft JhengHei",sans-serif;
+    --rail:40px;
   }
-  button { cursor: pointer; color: inherit; background: none; border: 0; padding: 0; }
-  input, select, textarea, button { font-family: inherit; }
-  input, select, textarea { font-size: 16px !important; }
-  .hidden { display: none !important; }
-  .tabnum { font-variant-numeric: tabular-nums; }
-  .safe-top { padding-top: max(env(safe-area-inset-top), 6px); }
-  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 6px); }
-  .press { transition: transform .08s ease, filter .08s; user-select: none; -webkit-user-select: none; }
-  .press:active { transform: scale(.94); filter: brightness(1.25); }
+  * { box-sizing:border-box; }
+  html { background:var(--paper); }
+  body {
+    margin:0; color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.5;
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--dot) 1.1px, transparent 1.3px);
+    background-size:18px 18px; background-position:9px 9px;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; overscroll-behavior-y:none;
+    -webkit-text-size-adjust:100%;
+  }
+  /* iPhone 狀態列那一條：墨色書背，讓白色狀態列文字看得清楚 */
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); background:var(--ink); z-index:100; }
+  button { cursor:pointer; color:inherit; background:none; border:0; padding:0; font:inherit; }
+  input, select, textarea { font-family:inherit; font-size:16px !important; color:var(--ink); }
+  :focus-visible { outline:3px solid var(--yama); outline-offset:2px; }
+  .hidden { display:none !important; }
+  .num, .tabnum { font-family:var(--f-num); font-variant-numeric:tabular-nums; }
+  .ja { font-family:var(--f-num); }
+  .hand { font-family:var(--f-hand); font-weight:600; }
+  .press { transition:transform .08s ease; user-select:none; -webkit-user-select:none; }
+  .press:active { transform:scale(.95); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+  .gutter { padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
 
-  /* Header */
-  .hbtn { display:inline-flex; align-items:center; gap:4px; min-height:42px; padding:0 12px; border-radius:12px; background:#fbbf24; color:#111; font-weight:900; font-size:15px; }
-  .mini { min-height:34px; padding:0 10px; border-radius:10px; background:#1b2430; border:1px solid #334155; font-weight:800; font-size:14px; }
-  .net { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:800; padding:6px 10px; border-radius:999px; background:#111821; border:1px solid #263241; white-space:nowrap; }
-  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-  .dot.on { background:#22c55e; box-shadow:0 0 8px #22c55e; }
-  .dot.off { background:#ef4444; box-shadow:0 0 8px #ef4444; animation: blink 1.4s infinite; }
-  @keyframes blink { 50% { opacity:.35; } }
-  .banner { border-radius:14px; padding:10px 12px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; }
-
-  /* Slider */
-  .ticks { position:absolute; left:12px; right:12px; top:50%; height:0; pointer-events:none; }
-  .tick { position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px; border-radius:50%; background:#22d3ee; box-shadow:0 0 0 2px #0b0f14; }
-  input[type=range].tl { -webkit-appearance:none; appearance:none; width:100%; height:34px; background:transparent; position:relative; z-index:1; margin:0; }
-  input[type=range].tl::-webkit-slider-runnable-track { height:8px; border-radius:99px; background:linear-gradient(90deg,#1e3a5f,#334155); }
-  input[type=range].tl::-moz-range-track { height:8px; border-radius:99px; background:#334155; }
-  input[type=range].tl::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; margin-top:-10px; box-shadow:0 0 0 2px #fbbf24; }
-  input[type=range].tl::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; }
-
-  /* 卡片 */
-  .node-card { background:var(--card); border:1px solid #263241; border-radius:20px; overflow:hidden; scroll-margin-top:calc(var(--hdr) + 10px); transition: opacity .25s, box-shadow .25s; }
-  .node-card.is-past { opacity:.55; }
-  .node-card.is-now { box-shadow:0 0 0 2px #34d399, 0 0 24px rgba(52,211,153,.25); }
-  .node-card.is-focus { box-shadow:0 0 0 3px #fbbf24, 0 0 24px rgba(251,191,36,.3); }
-  .idx { width:34px; height:34px; flex-shrink:0; border-radius:10px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; }
-  .leg { background:#0f141b; border-bottom:1px solid #263241; padding:12px 14px; }
-  .leg-grid { display:grid; grid-template-columns:auto 1fr; gap:8px 10px; align-items:center; margin-top:8px; }
-  .lbl { font-size:13px; font-weight:900; color:#0b0f14; background:#7dd3fc; border-radius:6px; padding:2px 7px; justify-self:start; white-space:nowrap; }
-  .lbl.off { background:#fda4af; }
-  .stn { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; text-align:left; padding:6px 10px; border-radius:10px; background:#1b2430; border:1px solid #2d3b4d; font-weight:800; color:#fff; min-height:42px; font-size:16px; }
-  .stn .ja { color:#67e8f9; font-weight:700; font-size:14px; }
-  .stn .go { font-size:12px; color:#fbbf24; font-weight:800; }
-  .warn { margin-top:10px; background:#3b2a07; border:1px solid #92400e; color:#fde68a; border-radius:12px; padding:8px 10px; font-size:15px; font-weight:600; }
-  .note { margin-top:10px; background:#111821; border:1px dashed #334155; color:#cbd5e1; border-radius:12px; padding:8px 10px; font-size:15px; white-space:pre-wrap; }
-  .tbox { background:#0f141b; border:1px solid #263241; border-radius:14px; padding:6px 4px; text-align:center; }
-  .tbox .k { font-size:12px; color:#94a3b8; font-weight:800; }
-  .tbox .v { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.15; color:#fff; }
-  .tbox.stay { background:#fbbf24; border-color:#fbbf24; }
-  .tbox.stay .k { color:#422006; } .tbox.stay .v { color:#111; }
-  .tbox.dep .v { color:#fca5a5; }
-  .sbtn { min-height:48px; border-radius:12px; font-weight:900; font-size:17px; border:1px solid #334155; background:#1b2430; font-variant-numeric:tabular-nums; }
-  .sbtn.minus { color:#93c5fd; } .sbtn.plus { color:#fcd34d; } .sbtn.plus2 { color:#fb923c; }
-  .sbtn.edit { color:#e5e7eb; }
-  .live { display:inline-flex; align-items:center; gap:6px; font-weight:900; border-radius:999px; padding:6px 12px; font-size:15px; }
-  .live-now { background:#064e3b; color:#6ee7b7; }
-  .live-urgent { background:#7f1d1d; color:#fecaca; animation: blink 1.2s infinite; }
-  .live-next { background:#1e293b; color:#cbd5e1; }
-  .live-past { background:#1f2937; color:#9ca3af; }
-  .live-move { background:#0c4a6e; color:#bae6fd; }
-  .subt { display:inline-block; border-radius:10px; padding:4px 8px; background:#1b2430; border:1px solid #334155; font-weight:900; font-size:15px; color:#fbbf24; font-variant-numeric:tabular-nums; }
-  .subt small { display:block; color:#94a3b8; font-size:12px; font-weight:700; }
-
-  /* 記帳 */
-  .chip { padding:7px 12px; border-radius:999px; border:1px solid #334155; font-weight:800; font-size:15px; background:#111821; min-height:40px; }
-  .chip.on { background:var(--c); color:#0b0f14; border-color:var(--c); }
-  .inp { width:100%; background:#0b0f14; border:1px solid #334155; border-radius:12px; padding:10px 12px; color:#fff; min-height:48px; }
-  .inp:focus { outline:none; border-color:#22d3ee; box-shadow:0 0 0 2px rgba(34,211,238,.25); }
-  .exp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #1f2a37; }
-  .catdot { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-  .xbtn { width:38px; height:38px; border-radius:10px; background:#1f2937; color:#f87171; font-weight:900; font-size:18px; flex-shrink:0; }
-  .addbtn { min-height:48px; border-radius:12px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; padding:0 16px; white-space:nowrap; }
-
-  /* Bottom nav */
-  .navb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:800; color:#cbd5e1; min-height:58px; }
-  .navb .ic { font-size:22px; line-height:1; }
-  .navb.main .ic { width:48px; height:48px; border-radius:16px; background:#22d3ee; color:#0b0f14; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; margin-top:-18px; box-shadow:0 6px 18px rgba(34,211,238,.35); }
-
-  /* Modal / Sheet */
-  .modal { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; justify-content:flex-end; }
-  .modal .bd { position:absolute; inset:0; background:rgba(0,0,0,.7); }
-  .sheet { position:relative; background:#111821; border-top-left-radius:22px; border-top-right-radius:22px; max-height:92vh; overflow-y:auto; -webkit-overflow-scrolling:touch; animation: up .22s ease-out; border-top:1px solid #263241; }
-  .sheet.full { max-height:100vh; height:100%; border-radius:0; border:0; }
-  @keyframes up { from { transform:translateY(40px); opacity:.4; } }
-  .sheet-h { position:sticky; top:0; z-index:2; background:#111821; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #1f2a37; }
-  .sheet-h h2 { font-size:20px; font-weight:900; margin:0; }
-  .xclose { min-width:44px; height:44px; border-radius:12px; background:#1f2937; font-size:20px; font-weight:900; }
-  .fl { display:block; font-size:14px; font-weight:800; color:#94a3b8; margin:12px 0 6px; }
-  .btn { min-height:50px; border-radius:14px; font-weight:900; font-size:17px; padding:0 16px; }
-  .btn-pri { background:#22d3ee; color:#0b0f14; }
-  .btn-amb { background:#fbbf24; color:#111; }
-  .btn-sec { background:#1f2937; color:#e5e7eb; border:1px solid #334155; }
-  .btn-dan { background:#7f1d1d; color:#fecaca; }
-  .sec-title { font-size:15px; font-weight:900; color:#94a3b8; letter-spacing:.04em; margin:20px 0 10px; }
-  .bar { height:14px; border-radius:99px; background:#1f2937; overflow:hidden; }
-  .bar > div { height:100%; border-radius:99px; transition: width .4s; }
-
-  /* Toast */
-  #toast { position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom)); z-index:90; background:#f8fafc; color:#0b0f14; border-radius:14px; padding:12px 14px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
-  #toast button { margin-left:auto; background:#0b0f14; color:#fbbf24; border-radius:10px; padding:8px 12px; font-weight:900; white-space:nowrap; }
-
-  /* 指路大卡 */
-  .dir { position:fixed; inset:0; z-index:80; display:flex; flex-direction:column; background:#000; color:#fff; }
-  .dir.bright { background:#facc15; color:#000; }
-  .dir-top { display:flex; justify-content:space-between; gap:10px; padding-left:14px; padding-right:14px; padding-bottom:8px; }
-  .dir-top button { min-height:48px; padding:0 16px; border-radius:14px; font-weight:900; font-size:17px; background:#262626; color:#fff; }
-  .dir.bright .dir-top button { background:#000; color:#facc15; }
-  .dir-body { flex:1; overflow-y:auto; padding:6px 20px 16px; display:flex; flex-direction:column; justify-content:center; }
-  .dir-label { font-size:18px; font-weight:800; opacity:.7; }
-  .dir-dest { font-size:clamp(44px, 13vw, 76px); font-weight:900; line-height:1.1; margin:4px 0; word-break:break-all; }
-  .dir-roma { font-size:20px; font-weight:700; opacity:.75; }
-  .dir-line { display:inline-block; margin-top:12px; font-size:22px; font-weight:900; padding:6px 12px; border-radius:12px; background:#1f2937; }
-  .dir.bright .dir-line { background:#000; color:#facc15; }
-  .dir-phrase { font-size:clamp(30px, 8.6vw, 48px); font-weight:900; line-height:1.3; margin-top:22px; padding:16px; border:4px solid currentColor; border-radius:18px; }
-  .dir-zh { font-size:18px; font-weight:700; margin-top:14px; opacity:.8; }
-  .dir-foot { font-size:24px; font-weight:900; margin-top:10px; }
-  .dir-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 12px; background:#111; }
-  .dir.bright .dir-tabs { background:#000; }
-  .dir-tabs button { min-height:52px; border-radius:12px; background:#262626; color:#fff; font-weight:900; font-size:15px; }
-  .dir-tabs button.on { background:#22d3ee; color:#000; }
-  .hide-sb::-webkit-scrollbar { display:none; }
-
-  /* Tailwind 備援：本 App 用到的工具類別。首次開啟就斷網、CDN 載不到時版面仍正常 */
-  .flex{display:flex}.grid{display:grid}.relative{position:relative}.fixed{position:fixed}.sticky{position:sticky}
-  .top-0{top:0}.bottom-0{bottom:0}.left-0{left:0}.right-0{right:0}.z-40{z-index:40}.z-50{z-index:50}
+  /* 小工具類別 */
+  .flex{display:flex}.grid{display:grid}.relative{position:relative}
   .flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.min-w-0{min-width:0}.w-full{width:100%}
   .items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}
   .gap-2{gap:.5rem}.gap-3{gap:.75rem}
   .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.col-span-2{grid-column:span 2/span 2}
-  .space-y-4>:not([hidden])~:not([hidden]){margin-top:1rem}
-  .mx-4{margin-left:1rem;margin-right:1rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}
-  .px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}
-  .pt-1{padding-top:.25rem}.pt-2{padding-top:.5rem}.pt-3{padding-top:.75rem}
-  .pb-2{padding-bottom:.5rem}.pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-10{padding-bottom:2.5rem}
-  .text-xs{font-size:.75rem;line-height:1rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xl{font-size:1.25rem;line-height:1.75rem}
+  .mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}
+  .pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-10{padding-bottom:2.5rem}
+  .text-xs{font-size:.78rem}.text-sm{font-size:.9rem}.text-lg{font-size:1.15rem}.text-xl{font-size:1.3rem}
   .font-bold{font-weight:700}.font-extrabold{font-weight:800}
   .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .text-white{color:#fff}.text-slate-300{color:#cbd5e1}.text-slate-400{color:#94a3b8}.text-slate-500{color:#64748b}
-  .text-amber-300{color:#fcd34d}.text-cyan-300{color:#67e8f9}.text-sky-300{color:#7dd3fc}.text-emerald-300{color:#6ee7b7}.text-rose-300{color:#fda4af}
-  .text-xs.text-slate-400{color:#94a3b8}
-  details summary{cursor:pointer}
+  .muted{color:var(--ink3)}.muted2{color:var(--ink2)}
+  .hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
 
-  /* 每日分頁 */
-  .days { display:flex; gap:8px; overflow-x:auto; padding:8px 16px 2px; scroll-snap-type:x proximity; }
-  .dchip { position:relative; flex-shrink:0; min-width:78px; padding:6px 10px 7px; border-radius:14px; background:#111821; border:1px solid #263241; text-align:center; line-height:1.25; scroll-snap-align:start; }
-  .dchip b { display:block; font-size:16px; font-weight:900; color:#e5e7eb; }
-  .dchip span { display:block; font-size:12px; color:#94a3b8; font-weight:700; white-space:nowrap; }
-  .dchip.on { background:#22d3ee; border-color:#22d3ee; }
-  .dchip.on b, .dchip.on span { color:#0b0f14; }
-  .dchip.past b { color:#64748b; }
-  .dchip .today { position:absolute; top:-7px; right:-4px; background:#34d399; color:#052e1c; font-size:11px; font-weight:900; border-radius:99px; padding:1px 6px; }
-  .dchip.add { min-width:56px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#67e8f9; border-style:dashed; }
-  #preview-bar { margin:6px 16px 0; border-radius:12px; padding:7px 12px; background:#312e81; color:#e0e7ff; font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
-  #preview-bar.hidden { display:none !important; }
-  #preview-bar button { margin-left:auto; background:#e0e7ff; color:#312e81; border-radius:9px; padding:5px 10px; font-weight:900; white-space:nowrap; }
-  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#0b0f14; border:1px solid #263241; border-radius:12px; padding:4px; margin-top:12px; }
-  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:#94a3b8; }
-  .seg button.on { background:#22d3ee; color:#0b0f14; }
-  .dayhead { font-weight:900; color:#67e8f9; font-size:15px; margin:14px 0 6px; }
+  /* ===== Header ===== */
+  #hdr { position:sticky; top:0; z-index:40; padding-top:env(safe-area-inset-top,0px);
+    background:var(--paper); border-bottom:2px dashed var(--line); }
+  .hdr-row { display:flex; align-items:flex-start; gap:8px; padding-top:8px; }
+  #trip-title { margin:0; font-family:var(--f-hand); font-weight:600; font-size:22px; line-height:1.25; color:var(--ink); text-wrap:balance; }
+  #trip-date { font-size:13px; color:var(--ink3); font-weight:700; margin-top:1px; }
+  #arch-state { font-size:12px; font-weight:800; margin-top:2px; color:var(--ai); }
+  #arch-state.stale { color:var(--money); }
+  .net { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; padding:5px 9px; border-radius:999px;
+    background:var(--card); border:1.5px solid var(--line); white-space:nowrap; color:var(--ink2); }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.on { background:var(--matcha); }
+  .dot.off { background:var(--shu); animation:blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity:.3; } }
+  .hbtn { display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 10px; border-radius:10px;
+    background:var(--card); border:1.5px solid var(--ink); color:var(--ink); font-weight:800; font-size:15px; box-shadow:2px 2px 0 var(--ink); }
+  .arch-btn { display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 10px; border-radius:10px;
+    background:var(--ai); color:#fffcf4; font-weight:800; font-size:14px; box-shadow:2px 2px 0 var(--ink); white-space:nowrap; }
+  .mini { min-height:34px; padding:0 10px; border-radius:9px; background:var(--card); border:1.5px solid var(--line); font-weight:800; font-size:14px; color:var(--ink2); }
+
+  /* 每日分頁：像筆記本的索引標籤 */
+  .days { display:flex; gap:6px; overflow-x:auto; padding:10px max(16px, env(safe-area-inset-right,0px)) 0 max(16px, env(safe-area-inset-left,0px)); }
+  .dchip { position:relative; flex-shrink:0; min-width:76px; padding:7px 10px 6px; border-radius:12px 12px 4px 4px;
+    background:var(--paper2); border:1.5px solid var(--line); text-align:center; line-height:1.2; }
+  .dchip b { display:block; font-family:var(--f-hand); font-weight:600; font-size:16px; color:var(--ink2); }
+  .dchip span { display:block; font-size:12px; color:var(--ink3); font-weight:700; white-space:nowrap; font-family:var(--f-num); }
+  .dchip.on { background:var(--card); border-color:var(--ink); box-shadow:2px 2px 0 var(--ink); }
+  .dchip.on b { color:var(--ink); }
+  .dchip.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:5px; background:var(--tape); border-radius:2px; }
+  .dchip.past b, .dchip.past span { color:var(--ink4); }
+  .dchip .today { position:absolute; top:-9px; right:-6px; width:30px; height:30px; border-radius:50%;
+    border:2px solid var(--shu); color:var(--shu); background:var(--card); font-style:normal; font-size:11px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; transform:rotate(-12deg); font-family:var(--f-hand); }
+  .dchip.add { min-width:50px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:var(--ai); border-style:dashed; background:transparent; }
+  #preview-bar { margin:8px 0 0; border-radius:10px; padding:7px 12px; background:var(--tape); color:var(--ink);
+    font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
+  #preview-bar button { margin-left:auto; background:var(--ink); color:var(--paper); border-radius:8px; padding:5px 10px; font-weight:900; white-space:nowrap; }
+
+  .banner { border-radius:12px; padding:9px 12px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1.5px solid transparent; }
+  .b-now { background:var(--matcha-pale); color:var(--matcha); border-color:var(--matcha); }
+  .b-urgent { background:var(--shu); color:#fffcf4; }
+  .b-next { background:var(--ai-pale); color:var(--ai); border-color:var(--ai); }
+  .b-done { background:var(--card); color:var(--ink2); border:1.5px dashed var(--line); }
+  .b-off { background:var(--card); color:var(--ink3); border:1.5px dashed var(--line); font-size:14px; }
+
+  /* 時間軸 */
+  .tl-head { display:flex; align-items:center; gap:8px; font-size:14px; }
+  #slider-label { font-family:var(--f-num); font-weight:700; font-size:20px; color:var(--shu); }
+  .ticks { position:absolute; left:12px; right:12px; top:50%; height:0; pointer-events:none; z-index:2; }
+  .tick { position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px; border-radius:50%; background:var(--ai); box-shadow:0 0 0 2px var(--paper); }
+  input[type=range].tl { -webkit-appearance:none; appearance:none; width:100%; height:32px; background:transparent; position:relative; z-index:1; margin:0; }
+  input[type=range].tl::-webkit-slider-runnable-track { height:6px; border-radius:99px; background:var(--line); }
+  input[type=range].tl::-moz-range-track { height:6px; border-radius:99px; background:var(--line); }
+  input[type=range].tl::-webkit-slider-thumb { -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:var(--card); border:3px solid var(--shu); margin-top:-10px; position:relative; z-index:3; }
+  input[type=range].tl::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:var(--card); border:3px solid var(--shu); }
+  .tl-scale { display:flex; justify-content:space-between; font-size:11px; color:var(--ink3); padding:0 4px; font-family:var(--f-num); }
+
+  /* ===== 路線軸 ===== */
+  #list { padding-top:14px; padding-bottom:calc(120px + env(safe-area-inset-bottom,0px)); }
+  .route { position:relative; }
+  /* 底層虛線：沒有交通段的地方用虛線連起來 */
+  .route::before { content:""; position:absolute; left:calc(var(--rail) / 2 - 1px); top:20px; bottom:20px; border-left:2.5px dotted var(--ink4); }
+  .stop { position:relative; padding-left:var(--rail); scroll-margin-top:calc(var(--hdr, 220px) + 10px); }
+  .stop + .stop { margin-top:14px; }
+
+  /* 交通段（像 Google 地圖的大眾運輸路線） */
+  .leg { position:relative; padding:4px 0 12px; --m:var(--m-other); }
+  .leg.m-train{--m:var(--m-train)} .leg.m-tram{--m:var(--m-tram)} .leg.m-bus{--m:var(--m-bus)} .leg.m-walk{--m:var(--m-walk)}
+  .leg::before { content:""; position:absolute; left:calc(var(--rail) / -2 - 4px); width:8px; top:18px; bottom:22px; border-radius:4px; background:var(--m); }
+  .leg.m-walk::before { background:none; border-left:4px dotted var(--m); width:0; left:calc(var(--rail) / -2 - 2px); }
+  .lrow { position:relative; display:flex; align-items:center; gap:8px; min-height:44px; }
+  .lrow .pin { position:absolute; left:calc(var(--rail) / -2 - 9px); width:18px; height:18px; border-radius:50%; background:var(--card); border:4px solid var(--m); z-index:1; }
+  .lrow .t { font-family:var(--f-num); font-weight:700; font-size:16px; color:var(--ink); min-width:46px; }
+  .lrow .lab { font-size:12px; font-weight:900; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+  .lab.on { background:var(--paper2); color:var(--ink2); border:1px solid var(--line); }
+  .lab.off { background:var(--shu); color:#fffcf4; }
+  .lmid { position:relative; padding:6px 0 6px 0; }
+  .linebadge { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:var(--m); color:#fffcf4; font-weight:800; font-size:15px; border-radius:8px; padding:5px 10px; line-height:1.3; }
+  .lineja { font-size:14px; color:var(--ai); font-weight:700; margin-top:3px; }
+  .lmeta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:6px; font-size:14px; color:var(--ink2); font-weight:700; }
+  .viatog { display:inline-flex; align-items:center; gap:4px; min-height:36px; padding:0 10px; border-radius:999px; border:1.5px solid var(--m); color:var(--m); font-weight:800; font-size:14px; background:var(--card); }
+  .via { list-style:none; margin:6px 0 2px; padding:0; }
+  .via li { position:relative; display:flex; align-items:baseline; gap:8px; padding:5px 0; font-size:15px; color:var(--ink2); }
+  .via li::before { content:""; position:absolute; left:calc(var(--rail) / -2 - 5px); top:11px; width:10px; height:10px; border-radius:50%; background:var(--card); border:2.5px solid var(--m); z-index:1; }
+  .via .vn { font-weight:700; color:var(--ink); }
+  .via .vj { font-size:13px; color:var(--ai); font-family:var(--f-num); }
+  .via li.last-hint { color:var(--shu); font-weight:800; font-size:13px; padding-top:2px; }
+  .via li.last-hint::before { display:none; }
+  .stn { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; text-align:left; padding:6px 10px; border-radius:10px;
+    background:var(--card); border:1.5px solid var(--line); font-weight:800; color:var(--ink); min-height:42px; font-size:16px; max-width:100%; }
+  .stn .ja { color:var(--ai); font-weight:700; font-size:14px; }
+  .stn .go { font-size:12px; color:var(--ink3); font-weight:800; }
+  .stn.off { border-color:var(--shu); box-shadow:2px 2px 0 var(--shu-pale); }
+  .warn { margin-top:8px; background:var(--warn-bg); border-left:4px solid var(--yama); color:var(--warn-ink); border-radius:6px; padding:8px 10px; font-size:15px; font-weight:600; }
+
+  /* 景點卡：貼在筆記本上的便條 */
+  .node-card { position:relative; background:var(--card); border:1.5px solid var(--line); border-radius:6px 14px 14px 14px;
+    box-shadow:0 1px 0 var(--line), 3px 4px 0 rgba(43,38,34,.06); transition:opacity .25s, box-shadow .25s; }
+  .node-card::before { content:""; position:absolute; top:-9px; left:22px; width:74px; height:18px; background:var(--tape); transform:rotate(-4deg); border-radius:2px; }
+  .node-card.is-past { opacity:.6; }
+  .node-card.is-now { border-color:var(--matcha); box-shadow:0 0 0 2px var(--matcha); }
+  .node-card.is-focus { border-color:var(--shu); box-shadow:0 0 0 2px var(--shu); }
+  .idx { position:absolute; left:calc(var(--rail) * -1 + 3px); top:12px; width:34px; height:34px; border-radius:50%;
+    background:var(--ink); color:var(--paper); font-family:var(--f-num); font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center; z-index:2; box-shadow:0 0 0 3px var(--paper); }
+  .node-card.is-now .idx { background:var(--matcha); }
+  .card-in { padding:14px 12px 12px; }
+  .pname { font-family:var(--f-hand); font-weight:600; font-size:22px; line-height:1.25; color:var(--ink); word-break:break-word; text-wrap:balance; }
+  .pja { font-size:15px; font-weight:700; color:var(--ai); margin-top:2px; font-family:var(--f-num); }
+  .pja small { color:var(--ink3); font-weight:500; font-size:13px; }
+  .phint { font-size:12px; color:var(--ink3); margin-top:2px; }
+  .subt { display:inline-block; text-align:right; font-family:var(--f-num); font-weight:700; font-size:15px; color:var(--money); line-height:1.2; }
+  .subt small { display:block; color:var(--ink3); font-size:12px; font-weight:500; }
+  .times { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:12px; }
+  .tbox { border:1.5px solid var(--line); border-radius:10px; padding:5px 2px; text-align:center; background:var(--card); }
+  .tbox .k { font-size:12px; color:var(--ink3); font-weight:800; }
+  .tbox .v { font-family:var(--f-num); font-size:23px; font-weight:700; line-height:1.15; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .tbox.stay { background:var(--tape); border-color:transparent; transform:rotate(-1deg); }
+  .tbox.stay .k { color:var(--ink2); }
+  .tbox.dep .v { color:var(--shu); }
+  .shifts { display:grid; grid-template-columns:1fr 1fr 1fr .8fr; gap:6px; margin-top:10px; }
+  .sbtn { min-height:46px; border-radius:10px; font-family:var(--f-num); font-weight:700; font-size:16px; border:1.5px solid var(--line); background:var(--paper2); color:var(--ink); }
+  .sbtn.minus { color:var(--ai); } .sbtn.plus, .sbtn.plus2 { color:var(--shu); }
+  .live { display:inline-flex; align-items:center; gap:6px; font-weight:800; border-radius:999px; padding:5px 12px; font-size:14px; }
+  .live-now { background:var(--matcha-pale); color:var(--matcha); }
+  .live-urgent { background:var(--shu); color:#fffcf4; animation:blink 1.2s infinite; }
+  .live-next { background:var(--paper2); color:var(--ink2); }
+  .live-past { background:var(--paper2); color:var(--ink3); }
+  .live-move { background:var(--ai-pale); color:var(--ai); }
+  .note { margin-top:10px; background:repeating-linear-gradient(var(--card) 0 25px, var(--line2) 25px 26px); border-radius:6px; color:var(--ink2); padding:2px 8px 4px; font-size:15px; line-height:26px; white-space:pre-wrap; }
+
+  /* 記帳 */
+  .exp-tog { display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 12px; border-top:1.5px dashed var(--line); }
+  .chip { padding:6px 12px; border-radius:999px; border:1.5px solid var(--line); font-weight:800; font-size:15px; background:var(--card); min-height:40px; color:var(--ink2); }
+  .chip.on { background:var(--c); color:#fffcf4; border-color:var(--c); }
+  .inp { width:100%; background:var(--paper2); border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--ink); min-height:48px; }
+  .inp:focus { outline:none; border-color:var(--ai); background:var(--card); }
+  .exp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed var(--line); }
+  .catdot { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .xbtn { width:38px; height:38px; border-radius:10px; background:var(--shu-pale); color:var(--shu); font-weight:900; font-size:17px; flex-shrink:0; }
+  .addbtn { min-height:48px; border-radius:10px; background:var(--ink); color:var(--paper); font-weight:900; font-size:16px; padding:0 14px; white-space:nowrap; }
+
+  /* 底部導覽 */
+  #nav { position:fixed; bottom:0; left:0; right:0; z-index:50; background:var(--card); border-top:2px solid var(--ink);
+    padding-bottom:max(env(safe-area-inset-bottom,0px), 6px); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+  .navb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:800; color:var(--ink2); min-height:58px; }
+  .navb .ic { font-size:21px; line-height:1; }
+  .navb.main .ic { width:50px; height:50px; border-radius:50%; background:var(--shu); color:#fffcf4; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; margin-top:-20px; border:3px solid var(--card); box-shadow:2px 3px 0 var(--ink); }
+
+  /* 彈出視窗 */
+  .modal { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; justify-content:flex-end; }
+  .modal .bd { position:absolute; inset:0; background:rgba(43,38,34,.45); }
+  .sheet { position:relative; background:var(--paper); border-top-left-radius:18px; border-top-right-radius:18px; max-height:92vh; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; animation:up .22s ease-out; border-top:2px solid var(--ink); }
+  .sheet.full { max-height:100vh; height:100%; border-radius:0; border:0; padding-top:env(safe-area-inset-top,0px); }
+  @keyframes up { from { transform:translateY(40px); opacity:.4; } }
+  .sheet-h { position:sticky; top:0; z-index:2; background:var(--paper); display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:2px dashed var(--line); }
+  .sheet-h h2 { font-family:var(--f-hand); font-weight:600; font-size:21px; margin:0; }
+  .sheet-body { padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
+  .xclose { min-width:44px; height:44px; border-radius:10px; background:var(--card); border:1.5px solid var(--line); font-size:19px; font-weight:900; color:var(--ink2); }
+  .fl { display:block; font-size:14px; font-weight:800; color:var(--ink3); margin:12px 0 6px; }
+  .btn { min-height:50px; border-radius:12px; font-weight:900; font-size:16px; padding:0 14px; }
+  .btn-pri { background:var(--ai); color:#fffcf4; box-shadow:2px 2px 0 var(--ink); }
+  .btn-amb { background:var(--yama); color:var(--ink); box-shadow:2px 2px 0 var(--ink); }
+  .btn-sec { background:var(--card); color:var(--ink); border:1.5px solid var(--line); }
+  .btn-dan { background:var(--shu-pale); color:var(--shu); border:1.5px solid var(--shu); }
+  .sec-title { font-family:var(--f-hand); font-weight:600; font-size:17px; color:var(--ink2); margin:20px 0 8px; display:flex; align-items:center; gap:8px; }
+  .sec-title::after { content:""; flex:1; border-bottom:1.5px dashed var(--line); }
+  .bar { height:14px; border-radius:99px; background:var(--paper2); overflow:hidden; border:1px solid var(--line); }
+  .bar > div { height:100%; border-radius:99px; transition:width .4s; }
+  .panel { background:var(--card); border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--paper2); border:1.5px solid var(--line); border-radius:12px; padding:4px; margin-top:12px; }
+  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:var(--ink3); }
+  .seg button.on { background:var(--card); color:var(--ink); box-shadow:1px 1px 0 var(--ink); border:1.5px solid var(--ink); }
+  .dayhead { font-family:var(--f-hand); font-weight:600; color:var(--ai); font-size:16px; margin:14px 0 6px; }
+  .total-card { margin-top:14px; background:var(--card); border:2px solid var(--ink); border-radius:14px; padding:16px; box-shadow:3px 3px 0 var(--ink); position:relative; }
+  .total-card::before { content:""; position:absolute; top:-9px; right:24px; width:70px; height:18px; background:var(--tape2); transform:rotate(5deg); }
+  .total-card .big { font-family:var(--f-num); font-weight:700; font-size:42px; line-height:1.1; color:var(--ink); }
+  .total-card .twd { font-family:var(--f-num); font-weight:700; font-size:21px; color:var(--money); }
+
+  #toast { position:fixed; left:max(16px, env(safe-area-inset-left,0px)); right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(84px + env(safe-area-inset-bottom,0px)); z-index:90;
+    background:var(--ink); color:var(--paper); border-radius:12px; padding:12px 14px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(43,38,34,.3); }
+  #toast button { margin-left:auto; background:var(--yama); color:var(--ink); border-radius:9px; padding:7px 12px; font-weight:900; white-space:nowrap; }
+
+  /* 指路大卡：刻意維持黑底／黃底高對比，給司機和路人看 */
+  .dir { position:fixed; inset:0; z-index:80; display:flex; flex-direction:column; background:#000; color:#fff; }
+  .dir.bright { background:#facc15; color:#000; }
+  .dir-top { display:flex; justify-content:space-between; gap:10px; padding:max(env(safe-area-inset-top,0px),10px) 14px 8px; }
+  .dir-top button { min-height:48px; padding:0 16px; border-radius:14px; font-weight:900; font-size:17px; background:#262626; color:#fff; }
+  .dir.bright .dir-top button { background:#000; color:#facc15; }
+  .dir-body { flex:1; overflow-y:auto; padding:6px 20px 16px; display:flex; flex-direction:column; justify-content:center; }
+  .dir-label { font-size:18px; font-weight:800; opacity:.7; }
+  .dir-dest { font-size:clamp(44px, 13vw, 76px); font-weight:900; line-height:1.1; margin:4px 0; word-break:break-all; font-family:var(--f-num); }
+  .dir-roma { font-size:20px; font-weight:700; opacity:.75; }
+  .dir-line { display:inline-block; margin-top:12px; font-size:22px; font-weight:900; padding:6px 12px; border-radius:12px; background:#1f2937; color:#fff; }
+  .dir.bright .dir-line { background:#000; color:#facc15; }
+  .dir-phrase { font-size:clamp(30px, 8.6vw, 48px); font-weight:900; line-height:1.3; margin-top:22px; padding:16px; border:4px solid currentColor; border-radius:18px; font-family:var(--f-num); }
+  .dir-zh { font-size:18px; font-weight:700; margin-top:14px; opacity:.8; }
+  .dir-foot { font-size:24px; font-weight:900; margin-top:10px; font-family:var(--f-num); }
+  .dir-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 12px max(env(safe-area-inset-bottom,0px),10px); background:#111; }
+  .dir.bright .dir-tabs { background:#000; }
+  .dir-tabs button { min-height:52px; border-radius:12px; background:#262626; color:#fff; font-weight:900; font-size:15px; }
+  .dir-tabs button.on { background:#facc15; color:#000; }
+
+  details summary { cursor:pointer; }
+  .empty { text-align:center; padding:50px 8px; color:var(--ink3); }
+  .empty h3 { font-family:var(--f-hand); font-weight:600; font-size:22px; color:var(--ink); margin:10px 0; }
 </style>
 </head>
 
 <body>
 <!-- ========== Header ========== -->
-<header id="hdr" class="sticky top-0 z-40 safe-top" style="background:rgba(11,15,20,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #1f2a37">
-  <div class="px-4 pt-1 flex items-center gap-2">
-    <div class="flex-1 min-w-0">
-      <h1 id="trip-title" class="text-lg font-extrabold truncate" style="margin:0">行程守護</h1>
-      <div id="trip-date" class="text-xs text-slate-400"></div>
+<header id="hdr">
+  <div class="gutter">
+    <div class="hdr-row">
+      <div class="flex-1 min-w-0">
+        <h1 id="trip-title">行程守護</h1>
+        <div id="trip-date"></div>
+        <div id="arch-state"></div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0" style="flex-wrap:wrap;justify-content:flex-end;max-width:58%">
+        <div id="net" class="net"></div>
+        <button id="arch-btn" data-act="archive" class="press arch-btn hidden">📦 封存</button>
+        <button data-act="openAna" class="press hbtn">💴 <span id="hdr-total" class="tabnum">¥0</span></button>
+      </div>
     </div>
-    <div id="net" class="net"></div>
-    <button data-act="openAna" class="press hbtn">💰 <span id="hdr-total" class="tabnum">¥0</span></button>
   </div>
   <div id="days" class="days hide-sb"></div>
-  <div id="preview-bar" class="hidden"></div>
-  <div id="banner" class="mx-4 mt-2"></div>
-  <div class="px-4 pt-2 pb-2">
-    <div class="flex items-center gap-2 text-sm">
-      <span class="text-slate-400 font-bold">時間軸</span>
-      <span id="slider-label" class="font-extrabold text-amber-300 text-lg tabnum">--:--</span>
-      <span id="slider-target" class="text-slate-300 font-bold truncate flex-1 min-w-0"></span>
-      <button data-act="now" class="press mini">📍 現在</button>
-    </div>
-    <div class="relative" style="margin-top:2px">
-      <div id="ticks" class="ticks"></div>
-      <input id="slider" class="tl" type="range" min="360" max="1320" step="5" value="480" aria-label="時間軸">
-    </div>
-    <div class="flex justify-between text-slate-500 tabnum" style="font-size:11px;padding:0 4px">
-      <span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>22:00</span>
+  <div class="gutter">
+    <div id="preview-bar" class="hidden"></div>
+    <div id="banner" class="mt-2"></div>
+    <div style="padding:8px 0 6px">
+      <div class="tl-head">
+        <span class="muted font-bold">時間軸</span>
+        <span id="slider-label" class="tabnum">--:--</span>
+        <span id="slider-target" class="muted2 font-bold truncate flex-1 min-w-0"></span>
+        <button data-act="now" class="press mini">📍 現在</button>
+      </div>
+      <div class="relative">
+        <div id="ticks" class="ticks"></div>
+        <input id="slider" class="tl" type="range" min="360" max="1320" step="5" value="480" aria-label="時間軸">
+      </div>
+      <div class="tl-scale"><span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>22:00</span></div>
     </div>
   </div>
 </header>
 
-<!-- ========== 行程列表 ========== -->
-<main id="list" class="px-3 pt-3 space-y-4" style="padding-bottom:calc(120px + env(safe-area-inset-bottom))"></main>
+<!-- ========== 行程列表（路線軸） ========== -->
+<main id="list" class="gutter"></main>
 
 <!-- ========== Bottom Nav ========== -->
-<nav class="fixed bottom-0 left-0 right-0 z-50 safe-bottom" style="background:rgba(13,18,24,.97);border-top:1px solid #1f2a37;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+<nav id="nav">
   <div class="grid grid-cols-5">
     <button data-act="top" class="press navb"><span class="ic">📋</span>行程</button>
     <button data-act="openImport" class="press navb"><span class="ic">📥</span>匯入</button>
     <button data-act="add" class="press navb main"><span class="ic">＋</span>新增</button>
-    <button data-act="openAna" class="press navb"><span class="ic">💰</span>支出</button>
+    <button data-act="openAna" class="press navb"><span class="ic">💴</span>支出</button>
     <button data-act="openSet" class="press navb"><span class="ic">⚙️</span>設定</button>
   </div>
 </nav>
@@ -309,23 +386,24 @@
 <!-- ========== 匯入 Modal ========== -->
 <div id="m-import" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-import"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2>📥 貼上行程筆記</h2><button class="press xclose" data-act="close" data-m="m-import">✕</button></div>
-    <div class="px-4 pb-4">
-      <p class="text-sm text-slate-400" style="margin:10px 0">每個行程以「時間」開頭的一行起始，其後各行可寫交通、停留、注意、備註。站名可用「中文 / 日文」或「中文 / Romaji」。也可直接貼上「匯出備份」的 JSON。</p>
-      <textarea id="imp-text" class="inp" rows="10" style="min-height:220px;line-height:1.5" placeholder="08:15 熊本站 / 熊本駅&#10;🚋 辛島町 → 熊本駅前（熊本市電 A系統）車程 15 分&#10;停留 35 分&#10;注意：後門上車前門下車&#10;備註：買便當"></textarea>
+  <div class="sheet">
+    <div class="sheet-h"><h2>📥 貼上行程筆記</h2><button class="press xclose" data-act="close" data-m="m-import" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
+      <p class="text-sm muted" style="margin:10px 0">用「第一天」「第二天」分天，每站以「時間」開頭的一行起始，其後可寫交通、經過、停留、注意、備註。也可以直接貼上「複製備份」的內容。</p>
+      <textarea id="imp-text" class="inp" rows="10" style="min-height:220px;line-height:1.5" placeholder="第一天 11/3&#10;08:15 熊本站 / 熊本駅&#10;🚋 辛島町 → 熊本駅前（熊本市電 A系統）15 分&#10;經過：慶徳校前→河原町→呉服町→祗園橋&#10;停留 35 分&#10;備註：買便當"></textarea>
       <div class="grid grid-cols-2 gap-2 mt-3">
         <button class="press btn btn-sec" data-act="impSample">📄 填入範例</button>
         <button class="press btn btn-pri" data-act="parse">🔍 解析預覽</button>
       </div>
-      <details class="mt-3 text-sm text-slate-400">
-        <summary class="font-bold text-slate-300" style="padding:8px 0">支援的關鍵字</summary>
+      <details class="mt-3 text-sm muted">
+        <summary class="font-bold muted2" style="padding:8px 0">支援的寫法</summary>
         <div style="line-height:1.8">
+          ・分天：<b>第一天</b>、<b>第2天 11/3</b>、<b>Day 3</b><br>
           ・時間：<b>08:30</b> 或 <b>08:30-10:00</b>（範圍自動算停留）<br>
           ・停留：<b>停留 45 分</b>、<b>自由活動 1.5 小時</b><br>
           ・交通：<b>🚌 A站 → B站（路線）40 分</b>，或「上車：」「下車：」「搭乘：」「車程：」<br>
-          ・注意 / ⚠️：下車注意事項　・備註 / 📝：一般筆記<br>
-          ・日文：、拼音：可補站名；常見九州地名會自動補日文
+          ・經過的站：<b>經過：A→B→C</b>（也可用、分隔，站名可寫「中文 / 日文」）<br>
+          ・注意 / ⚠️：下車注意事項　・備註 / 📝：一般筆記
         </div>
       </details>
       <div id="imp-preview" class="mt-3"></div>
@@ -336,38 +414,40 @@
 <!-- ========== 新增 / 編輯 Modal ========== -->
 <div id="m-edit" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-edit"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2 id="edit-title">新增行程</h2><button class="press xclose" data-act="close" data-m="m-edit">✕</button></div>
-    <div class="px-4 pb-6">
+  <div class="sheet">
+    <div class="sheet-h"><h2 id="edit-title">新增行程</h2><button class="press xclose" data-act="close" data-m="m-edit" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
       <input type="hidden" id="f-id">
-      <div class="sec-title" style="margin-top:12px">📍 地點</div>
-      <label class="fl">名稱（中文）</label><input id="f-name" class="inp" placeholder="例：草千里">
+      <div class="sec-title">📍 地點</div>
+      <label class="fl" for="f-name">名稱（中文）</label><input id="f-name" class="inp" placeholder="例：草千里">
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">日文</label><input id="f-nameJa" class="inp" placeholder="草千里"></div>
-        <div><label class="fl">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
+        <div><label class="fl" for="f-nameJa">日文</label><input id="f-nameJa" class="inp" placeholder="草千里"></div>
+        <div><label class="fl" for="f-romaji">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
       </div>
       <div class="sec-title">⏱ 時間預算</div>
-      <label class="fl">哪一天</label><select id="f-day" class="inp"></select>
+      <label class="fl" for="f-day">哪一天</label><select id="f-day" class="inp"></select>
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
-        <div><label class="fl">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
+        <div><label class="fl" for="f-arrive">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
+        <div><label class="fl" for="f-stay">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
       </div>
       <div id="f-chain-wrap" class="mt-3 flex items-center gap-2" style="font-weight:700">
-        <input id="f-chain" type="checkbox" checked style="width:22px;height:22px">
-        <label for="f-chain">時間變動時，後續行程連動順延</label>
+        <input id="f-chain" type="checkbox" checked style="width:22px;height:22px;accent-color:var(--ai)">
+        <label for="f-chain">時間變動時，同一天後面的行程跟著順延</label>
       </div>
-      <div class="sec-title">🚃 前往此地的交通（可留空）</div>
+      <div class="sec-title">🚃 前往這裡的交通（可留空）</div>
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">上車站（中）</label><input id="f-tFrom" class="inp"></div>
-        <div><label class="fl">上車站（日）</label><input id="f-tFromJa" class="inp"></div>
-        <div><label class="fl">路線/車種（中）</label><input id="f-tLine" class="inp"></div>
-        <div><label class="fl">路線/車種（日）</label><input id="f-tLineJa" class="inp"></div>
-        <div><label class="fl">下車站（中）</label><input id="f-tTo" class="inp"></div>
-        <div><label class="fl">下車站（日）</label><input id="f-tToJa" class="inp"></div>
+        <div><label class="fl" for="f-tFrom">上車站（中）</label><input id="f-tFrom" class="inp"></div>
+        <div><label class="fl" for="f-tFromJa">上車站（日）</label><input id="f-tFromJa" class="inp"></div>
+        <div><label class="fl" for="f-tLine">路線/車種（中）</label><input id="f-tLine" class="inp"></div>
+        <div><label class="fl" for="f-tLineJa">路線/車種（日）</label><input id="f-tLineJa" class="inp"></div>
+        <div><label class="fl" for="f-tTo">下車站（中）</label><input id="f-tTo" class="inp"></div>
+        <div><label class="fl" for="f-tToJa">下車站（日）</label><input id="f-tToJa" class="inp"></div>
       </div>
-      <label class="fl">車程（分鐘）</label><input id="f-tMins" type="number" inputmode="numeric" min="0" class="inp">
-      <label class="fl">下車注意事項</label><textarea id="f-tNote" class="inp" rows="2"></textarea>
-      <label class="fl">備註</label><textarea id="f-note" class="inp" rows="3"></textarea>
+      <label class="fl" for="f-tMins">車程（分鐘）</label><input id="f-tMins" type="number" inputmode="numeric" min="0" class="inp">
+      <label class="fl" for="f-via">途中經過的站（一行一站，可寫「中文 / 日文」，不含上下車站）</label>
+      <textarea id="f-via" class="inp" rows="4" placeholder="慶徳校前&#10;河原町&#10;呉服町&#10;祗園橋"></textarea>
+      <label class="fl" for="f-tNote">下車注意事項</label><textarea id="f-tNote" class="inp" rows="2"></textarea>
+      <label class="fl" for="f-note">備註</label><textarea id="f-note" class="inp" rows="3"></textarea>
       <div class="grid grid-cols-3 gap-2 mt-5">
         <button id="f-del" class="press btn btn-dan" data-act="delNode">刪除</button>
         <button class="press btn btn-pri col-span-2" data-act="saveNode">💾 儲存</button>
@@ -378,43 +458,52 @@
 
 <!-- ========== 支出分析 Modal（全螢幕） ========== -->
 <div id="m-ana" class="modal hidden">
-  <div class="sheet full safe-top safe-bottom">
-    <div class="sheet-h"><h2 id="ana-title">💰 當日支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana">✕</button></div>
-    <div id="ana-body" class="px-4 pb-10"></div>
+  <div class="sheet full">
+    <div class="sheet-h"><h2 id="ana-title">💴 支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana" aria-label="關閉">✕</button></div>
+    <div id="ana-body" class="sheet-body pb-10"></div>
   </div>
 </div>
 
 <!-- ========== 設定 Modal ========== -->
 <div id="m-set" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-set"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set">✕</button></div>
-    <div class="px-4 pb-8">
-      <label class="fl">行程標題</label><input id="s-title" class="inp">
-      <label class="fl">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
+  <div class="sheet">
+    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
+      <label class="fl" for="s-title">行程標題</label><input id="s-title" class="inp">
+      <label class="fl" for="s-date">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
-        <div><label class="fl">當日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
+        <div><label class="fl" for="s-rate">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
+        <div><label class="fl" for="s-budget">每日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
       </div>
-      <label class="fl">±分鐘按鈕的順延方式</label>
+      <label class="fl" for="s-mode">±分鐘按鈕的順延方式</label>
       <select id="s-mode" class="inp">
         <option value="all">本站抵達起，本站與後續全部平移</option>
         <option value="stay">延長／縮短本站停留，後續平移</option>
       </select>
 
+      <div class="sec-title">📦 離線封存</div>
+      <div class="panel text-sm muted2" style="line-height:1.7">
+        有網路時按上方的「<b>📦 封存</b>」，會把整個 App、字體和目前的行程存進手機。之後進山區斷網也能打開，倒數照手機時間自動進行，記帳和順延照常可用。
+        <div id="s-arch" class="text-xs" style="margin-top:6px;color:var(--ai);font-weight:800"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <button id="s-arch-btn" class="press btn btn-pri" data-act="archive">📦 立即封存</button>
+        <button class="press btn btn-sec" data-act="restoreArch">↩️ 還原到封存時</button>
+      </div>
+
       <div class="sec-title">📲 安裝成 App</div>
-      <button id="s-install" class="press btn btn-amb w-full hidden" data-act="install" style="width:100%">⬇️ 安裝到主畫面</button>
-      <div class="text-sm text-slate-300" style="line-height:1.7;background:#0b0f14;border:1px solid #263241;border-radius:12px;padding:10px 12px;margin-top:8px">
+      <button id="s-install" class="press btn btn-amb w-full hidden" data-act="install">⬇️ 安裝到主畫面</button>
+      <div class="panel text-sm muted2 mt-2" style="line-height:1.7">
         <b>iPhone：</b>用 Safari 開啟 → 分享 ⬆️ →「加入主畫面」。<br>
-        <b>Android：</b>用 Chrome 開啟 → 右上 ⋮ →「安裝應用程式／加到主畫面」。<br>
-        出發前請<b>在有網路時至少開啟一次</b>，樣式與資料會存入手機，之後斷網也能使用。
-        <div id="s-sw" class="text-xs text-slate-500" style="margin-top:6px"></div>
+        <b>Android：</b>用 Chrome 開啟 → 右上 ⋮ →「安裝應用程式／加到主畫面」。
+        <div id="s-sw" class="text-xs muted" style="margin-top:6px"></div>
       </div>
 
       <div class="sec-title">💾 資料備份</div>
       <div class="grid grid-cols-2 gap-2">
-        <button class="press btn btn-sec" data-act="export">⬇️ 匯出 JSON</button>
         <button class="press btn btn-sec" data-act="copyBackup">📋 複製備份</button>
+        <button class="press btn btn-sec" data-act="export">⬇️ 匯出 JSON</button>
         <button class="press btn btn-sec" data-act="importFile">📂 讀取備份檔</button>
         <button class="press btn btn-sec" data-act="dlSW">⚙️ 下載 sw.js</button>
       </div>
@@ -425,26 +514,26 @@
         <button class="press btn btn-sec" data-act="resetDemo">載入示範資料</button>
         <button class="press btn btn-dan" data-act="clearAll">清空全部</button>
       </div>
-      <p class="text-xs text-slate-500" style="margin-top:12px;line-height:1.6">示範資料中的班次、車程與金額僅供格式參考，實際請以 JR 九州、產交巴士等業者當日公告為準。所有資料只存在本機瀏覽器的 localStorage，不會上傳。</p>
+      <p class="text-xs muted" style="margin-top:12px;line-height:1.6">示範資料的停靠站已查過業者資料，但班次、車程與金額僅供參考，出發前請以 JR 九州、熊本市電、產交巴士當日公告為準。所有資料只存在這支手機，不會上傳。</p>
     </div>
   </div>
 </div>
 
 <!-- ========== 離線指路大卡 ========== -->
 <div id="dir" class="dir hidden">
-  <div class="dir-top safe-top">
+  <div class="dir-top">
     <button class="press" data-act="dirTheme" id="dir-theme">☀️ 強光模式</button>
     <button class="press" data-act="dirClose">✕ 關閉</button>
   </div>
   <div id="dir-body" class="dir-body"></div>
-  <div id="dir-tabs" class="dir-tabs safe-bottom"></div>
+  <div id="dir-tabs" class="dir-tabs"></div>
 </div>
 
-<!-- ========== 確認對話框（取代瀏覽器 confirm） ========== -->
+<!-- ========== 確認對話框 ========== -->
 <div id="m-ask" class="modal hidden" style="z-index:75;justify-content:center;padding:0 16px">
   <div class="bd" data-act="askNo"></div>
-  <div class="sheet" style="border-radius:20px;border:1px solid #263241;padding:20px 16px 16px">
-    <div id="ask-msg" style="font-size:18px;font-weight:800;color:#fff;line-height:1.5;white-space:pre-wrap"></div>
+  <div class="sheet" style="border-radius:16px;border:2px solid var(--ink);padding:20px 16px 16px;box-shadow:4px 4px 0 var(--ink)">
+    <div id="ask-msg" style="font-size:18px;font-weight:800;color:var(--ink);line-height:1.5;white-space:pre-wrap"></div>
     <div class="grid grid-cols-2 gap-2" style="margin-top:18px">
       <button class="press btn btn-sec" data-act="askNo">取消</button>
       <button id="ask-ok" class="press btn btn-amb" data-act="askOk">確定</button>
@@ -454,13 +543,12 @@
 
 <div id="toast" class="hidden"></div>
 
-<!-- Tailwind 條件式 class 預先曝光，確保被產生並快取（離線用） -->
-<div class="hidden text-amber-300 text-emerald-300 text-rose-300 text-sky-300 text-cyan-300 bg-emerald-950 bg-rose-950 bg-slate-800 border-emerald-700 border-rose-700 border-slate-700 col-span-2 grid-cols-3 grid-cols-2 w-full"></div>
-
 <!-- ========== Service Worker 原始碼（放到與 HTML 同目錄命名為 sw.js 即啟用） ========== -->
 <script type="text/plain" id="sw-src">
-// 行程守護 Service Worker：快取優先、背景更新
-const CACHE = 'trip-guard-v1';
+// 行程守護 Service Worker v2
+// 網頁本身：有網路時抓最新版（並更新快取），離線時用快取
+// 其他資源（Tailwind CDN 等）：快取優先、背景更新
+const CACHE = 'trip-guard-v2';
 self.addEventListener('install', e => {
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'https://cdn.tailwindcss.com']).catch(() => {})));
@@ -469,12 +557,23 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(hit => {
-      const net = fetch(e.request).then(res => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  if (req.mode === 'navigate') {
+    e.respondWith(
+      fetch(req).then(res => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        caches.open(CACHE).then(c => c.put('./', copy)).catch(() => {});
+        return res;
+      }).catch(() => caches.match('./', { ignoreSearch: true }).then(r => r || caches.match(req, { ignoreSearch: true })))
+    );
+    return;
+  }
+  e.respondWith(
+    caches.match(req, { ignoreSearch: true }).then(hit => {
+      const net = fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
       }).catch(() => hit);
       return hit || net;
@@ -489,14 +588,13 @@ self.addEventListener('fetch', e => {
 
 /* ---------- 常數與工具 ---------- */
 const LS_KEY = 'tg_state_v1';
-const TW_KEY = 'tg_tw_css';
 const CATS = [
-  { k: 'food',      n: '餐飲', i: '🍜', c: '#f59e0b' },
-  { k: 'transport', n: '交通', i: '🚌', c: '#22d3ee' },
-  { k: 'ticket',    n: '門票', i: '🎫', c: '#a78bfa' },
-  { k: 'shopping',  n: '購物', i: '🛍️', c: '#f472b6' },
-  { k: 'lodging',   n: '住宿', i: '🏨', c: '#34d399' },
-  { k: 'misc',      n: '雜支', i: '📦', c: '#94a3b8' }
+  { k: 'food',      n: '餐飲', i: '🍜', c: '#c96f1e' },  // 柿
+  { k: 'transport', n: '交通', i: '🚌', c: '#2f4f7a' },  // 藍
+  { k: 'ticket',    n: '門票', i: '🎫', c: '#7a5c9a' },  // 藤
+  { k: 'shopping',  n: '購物', i: '🛍️', c: '#c0566f' },  // 紅梅
+  { k: 'lodging',   n: '住宿', i: '🏨', c: '#4f8a5e' },  // 若竹
+  { k: 'misc',      n: '雜支', i: '📦', c: '#857a6b' }   // 鼠
 ];
 const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
 
@@ -690,21 +788,69 @@ function save() {
   catch (e) { toast('⚠️ 無法寫入手機儲存空間（可能是私密瀏覽模式）'); }
 }
 
-/* ---------- Tailwind CSS 離線快取 ---------- */
-let twTimer = null;
-function cacheTW() {
-  if (window.__TW_OFFLINE) return;
-  clearTimeout(twTimer);
-  twTimer = setTimeout(() => {
-    try {
-      let css = '';
-      document.querySelectorAll('style').forEach(s => {
-        if (s.id === 'app-css' || s.id === 'tw-cache') return;
-        css += s.textContent + '\n';
-      });
-      if (css.length > 2000) localStorage.setItem(TW_KEY, css);
-    } catch (e) {}
-  }, 1500);
+/* ---------- 📦 離線封存 ---------- */
+// 版面已全部內嵌，不再需要快取外部 CSS 框架
+function cacheTW() {}
+const CACHE_NAME = 'trip-guard-v3';
+const ARCH_KEY = 'tg_archive_v1';
+function getArch() { try { return JSON.parse(localStorage.getItem(ARCH_KEY) || 'null'); } catch (e) { return null; } }
+function archTime(a) {
+  const d = new Date(a.at);
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function renderArchState() {
+  const a = getArch(), el = $('#arch-state');
+  const on = navigator.onLine;
+  $('#arch-btn').classList.toggle('hidden', !on);
+  $('#arch-btn').textContent = a ? '📦 再封存' : '📦 封存';
+  if (!a) { el.textContent = on ? '尚未封存：出發前請按「📦 封存」' : '⚠️ 尚未封存，但資料仍存在手機'; el.className = 'stale'; }
+  else { el.textContent = (on ? '📦 已封存 ' : '📴 離線使用封存版 ') + archTime(a); el.className = ''; }
+  const s = $('#s-arch'); if (s) s.textContent = a ? `上次封存：${archTime(a)}（${a.full ? '整個 App 已可離線開啟' : '行程已存，App 檔案需在主畫面版本封存'}）` : '還沒有封存過。';
+  const sb = $('#s-arch-btn'); if (sb) sb.disabled = !on, sb.style.opacity = on ? 1 : .45;
+  setHdrVar();
+}
+async function archiveNow() {
+  if (!navigator.onLine) { toast('📴 目前離線，連上網路才能封存'); return; }
+  const btn = $('#arch-btn'); btn.textContent = '⏳ 封存中…'; btn.disabled = true;
+  let full = false;
+  try {
+    save();
+    // 1) 讓字體把行程裡會用到的字都下載好
+    const text = S.trip.title + S.nodes.map(n => [n.name, n.nameJa, n.tFrom, n.tFromJa, n.tTo, n.tToJa, n.tLine, n.tLineJa, n.note, n.tNote,
+      (n.via || []).map(v => v.zh + v.ja).join('')].join('')).join('') + '0123456789:¥第一二三四五六七八九十天';
+    if (document.fonts && document.fonts.load) {
+      await Promise.race([Promise.all([
+        document.fonts.load('600 22px "Klee One"', text),
+        document.fonts.load('700 20px "Zen Maru Gothic"', text),
+        document.fonts.load('500 16px "Zen Maru Gothic"', text)
+      ]), new Promise(r => setTimeout(r, 8000))]).catch(() => {});
+    }
+    // 2) 註冊離線程式並把網頁、字體存進快取
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      try { await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+    }
+    if ('caches' in window && /^https?:$/.test(location.protocol)) {
+      const c = await caches.open(CACHE_NAME);
+      const page = await fetch(new Request('./', { cache: 'reload' }));
+      if (page.ok) { await c.put('./', page.clone()); full = true; }
+      try { const sw = await fetch(new Request('./sw.js', { cache: 'reload' })); if (sw.ok) await c.put('./sw.js', sw); } catch (e) {}
+      const fontCss = $('#font-css').href;
+      try { await c.put(fontCss, await fetch(fontCss, { mode: 'no-cors' })); } catch (e) {}
+      const fontFiles = performance.getEntriesByType('resource').map(r => r.name).filter(u => /fonts\.gstatic\.com/.test(u));
+      await Promise.all([...new Set(fontFiles)].map(u => fetch(u, { mode: 'cors' }).then(r => r.ok && c.put(u, r)).catch(() => {})));
+    }
+  } catch (e) { full = false; }
+  const a = { at: Date.now(), full, state: S };
+  try { localStorage.setItem(ARCH_KEY, JSON.stringify(a)); } catch (e) {}
+  btn.disabled = false;
+  renderArchState();
+  toast(full ? '📦 已封存！斷網也能打開，倒數會照手機時間進行' : '📦 行程已封存在手機（請在主畫面 App 再按一次，讓整個 App 也能離線開啟）');
+}
+async function restoreArch() {
+  const a = getArch();
+  if (!a || !a.state) { toast('還沒有封存過'); return; }
+  if (!(await ask(`還原到 ${archTime(a)} 封存時的行程？\n之後新增的記帳和修改會被取代。`, '還原'))) return;
+  S = normState(a.state); save(); closeAllModals(); setDay(autoDay()); toast('↩️ 已還原到封存時的行程');
 }
 
 /* ---------- 計算 ---------- */

@@ -3,17 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="行程守護">
 <meta name="application-name" content="行程守護">
-<meta name="theme-color" content="#0b0f14">
+<meta name="theme-color" content="#2b2622">
 <meta name="format-detection" content="telephone=no">
-<title>行程守護 · 離線旅遊助手</title>
+<title>行程守護 · 旅の手帖</title>
 <link rel="manifest" id="manifest-link" href="data:application/manifest+json,{}">
 <link rel="apple-touch-icon" id="apple-icon" href="">
 <link rel="icon" id="fav-icon" href="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link id="font-css" rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Klee+One:wght@600&family=Zen+Maru+Gothic:wght@500;700&display=swap">
 
 <!-- ========== PWA：Data URI Manifest + 動態產生 App 圖示 ========== -->
 <script>
@@ -21,42 +25,35 @@
   function makeIcon(size) {
     try {
       var c = document.createElement('canvas'); c.width = c.height = size;
-      var x = c.getContext('2d');
-      var g = x.createLinearGradient(0, 0, size, size);
-      g.addColorStop(0, '#0e7490'); g.addColorStop(1, '#0b0f14');
-      x.fillStyle = g; x.fillRect(0, 0, size, size);
-      // 火山
-      x.fillStyle = '#fbbf24';
-      x.beginPath();
-      x.moveTo(size * .10, size * .80); x.lineTo(size * .38, size * .40);
-      x.lineTo(size * .46, size * .46); x.lineTo(size * .54, size * .46);
-      x.lineTo(size * .62, size * .40); x.lineTo(size * .90, size * .80);
-      x.closePath(); x.fill();
-      // 噴煙
-      x.fillStyle = 'rgba(255,255,255,.9)';
-      [[.50, .33, .07], [.58, .24, .085], [.68, .16, .07]].forEach(function (p) {
-        x.beginPath(); x.arc(size * p[0], size * p[1], size * p[2], 0, Math.PI * 2); x.fill();
-      });
-      // 時鐘
-      x.strokeStyle = '#22d3ee'; x.lineWidth = size * .035;
-      x.beginPath(); x.arc(size * .24, size * .24, size * .12, 0, Math.PI * 2); x.stroke();
-      x.beginPath(); x.moveTo(size * .24, size * .24); x.lineTo(size * .24, size * .16);
-      x.moveTo(size * .24, size * .24); x.lineTo(size * .30, size * .27); x.stroke();
+      var x = c.getContext('2d'), s = size;
+      // 和紙底
+      x.fillStyle = '#f5efe2'; x.fillRect(0, 0, s, s);
+      x.fillStyle = 'rgba(133,122,107,.25)';
+      for (var gx = s * .08; gx < s; gx += s * .1) for (var gy = s * .08; gy < s; gy += s * .1) { x.beginPath(); x.arc(gx, gy, s * .008, 0, 7); x.fill(); }
+      // 朱色太陽
+      x.fillStyle = '#c0432c'; x.beginPath(); x.arc(s * .70, s * .30, s * .12, 0, 7); x.fill();
+      // 藍色山線
+      x.strokeStyle = '#2f4f7a'; x.lineWidth = s * .06; x.lineJoin = 'round'; x.lineCap = 'round';
+      x.beginPath(); x.moveTo(s * .12, s * .78); x.lineTo(s * .38, s * .44); x.lineTo(s * .47, s * .52);
+      x.lineTo(s * .56, s * .50); x.lineTo(s * .88, s * .78); x.stroke();
+      // 紙膠帶
+      x.fillStyle = 'rgba(224,165,38,.75)'; x.save(); x.translate(s * .22, s * .16); x.rotate(-.35);
+      x.fillRect(-s * .16, -s * .05, s * .32, s * .1); x.restore();
       return c.toDataURL('image/png');
     } catch (e) { return ''; }
   }
   var i180 = makeIcon(180), i192 = makeIcon(192), i512 = makeIcon(512);
   var base = location.href.split('#')[0].split('?')[0];
   var manifest = {
-    name: '行程守護・離線旅遊助手',
+    name: '行程守護・旅の手帖',
     short_name: '行程守護',
     description: '自由行時間預算管理與離線記帳',
     start_url: base,
     scope: base.replace(/[^\/]*$/, ''),
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#0b0f14',
-    theme_color: '#0b0f14',
+    background_color: '#f5efe2',
+    theme_color: '#2b2622',
     icons: [
       { src: i192, sizes: '192x192', type: 'image/png' },
       { src: i512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
@@ -69,239 +66,326 @@
 })();
 </script>
 
-<!-- ========== Tailwind CDN（連線時載入，並把產生的 CSS 快取到 localStorage 供離線使用） ========== -->
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  if (typeof tailwind !== 'undefined') {
-    tailwind.config = { theme: { extend: {} } };
-    window.__TW_OFFLINE = false;
-  } else {
-    // 離線且 CDN 無法載入 → 套用上次快取的 Tailwind CSS
-    window.__TW_OFFLINE = true;
-    try {
-      var cached = localStorage.getItem('tg_tw_css');
-      if (cached) {
-        var st = document.createElement('style');
-        st.id = 'tw-cache'; st.textContent = cached;
-        document.head.appendChild(st);
-      }
-    } catch (e) {}
-  }
-</script>
-
-<!-- ========== App 自有樣式（不依賴 Tailwind，離線也保證可讀） ========== -->
+<!-- ========== 樣式：日式文青手帳風（全部內嵌，不依賴外部 CSS 框架，斷網也完整） ========== -->
 <style id="app-css">
-  :root { --bg:#0b0f14; --card:#141a22; --line:#263241; --hdr:220px; }
-  * { box-sizing: border-box; }
-  html, body { background: var(--bg); color: #e5e7eb; margin: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Microsoft JhengHei", sans-serif;
-    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-    overscroll-behavior-y: none; font-size: 16px; line-height: 1.45;
-    -webkit-text-size-adjust: 100%;
+  /* 版面概念：方格和紙筆記本，左側一條「路線軸」把每一站像 Google 地圖大眾運輸那樣串起來 */
+  :root {
+    color-scheme: light;
+    --paper:#f5efe2; --paper2:#ece4d2; --card:#fffcf4; --dot:rgba(133,122,107,.22);
+    --ink:#2b2622; --ink2:#574f45; --ink3:#7f7466; --ink4:#b3a895;
+    --line:#ddd2bd; --line2:#e9e1cf;
+    --ai:#2f4f7a; --ai-pale:#e2e8f0;          /* 藍 */
+    --shu:#c0432c; --shu-pale:#f6e2db;        /* 朱 */
+    --matcha:#557636; --matcha-pale:#e4ecd5;  /* 抹茶 */
+    --yama:#e0a526; --tape:rgba(224,165,38,.42); --tape2:rgba(47,79,122,.18);
+    --money:#8a5a12; --warn-bg:#fbefd2; --warn-ink:#6b4708;
+    --m-train:#2f4f7a; --m-tram:#2b7a68; --m-bus:#c0432c; --m-walk:#9a8f7f; --m-other:#7a5c9a;
+    --f-hand:"Klee One","Hiragino Maru Gothic ProN","PingFang TC","Noto Sans TC","Microsoft JhengHei",cursive;
+    --f-num:"Zen Maru Gothic","Hiragino Maru Gothic ProN","PingFang TC",ui-rounded,system-ui,sans-serif;
+    --f-body:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Hiragino Sans","Microsoft JhengHei",sans-serif;
+    --rail:40px;
   }
-  button { cursor: pointer; color: inherit; background: none; border: 0; padding: 0; }
-  input, select, textarea, button { font-family: inherit; }
-  input, select, textarea { font-size: 16px !important; }
-  .hidden { display: none !important; }
-  .tabnum { font-variant-numeric: tabular-nums; }
-  .safe-top { padding-top: max(env(safe-area-inset-top), 6px); }
-  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 6px); }
-  .press { transition: transform .08s ease, filter .08s; user-select: none; -webkit-user-select: none; }
-  .press:active { transform: scale(.94); filter: brightness(1.25); }
+  * { box-sizing:border-box; }
+  html { background:var(--paper); }
+  body {
+    margin:0; color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.5;
+    background-color:var(--paper);
+    background-image:radial-gradient(var(--dot) 1.1px, transparent 1.3px);
+    background-size:18px 18px; background-position:9px 9px;
+    -webkit-tap-highlight-color:transparent; touch-action:manipulation; overscroll-behavior-y:none;
+    -webkit-text-size-adjust:100%;
+  }
+  /* iPhone 狀態列那一條：墨色書背，讓白色狀態列文字看得清楚 */
+  body::before { content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top,0px); background:var(--ink); z-index:100; }
+  button { cursor:pointer; color:inherit; background:none; border:0; padding:0; font:inherit; }
+  input, select, textarea { font-family:inherit; font-size:16px !important; color:var(--ink); }
+  :focus-visible { outline:3px solid var(--yama); outline-offset:2px; }
+  .hidden { display:none !important; }
+  .num, .tabnum { font-family:var(--f-num); font-variant-numeric:tabular-nums; }
+  .ja { font-family:var(--f-num); }
+  .hand { font-family:var(--f-hand); font-weight:600; }
+  .press { transition:transform .08s ease; user-select:none; -webkit-user-select:none; }
+  .press:active { transform:scale(.95); }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+  .gutter { padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
 
-  /* Header */
-  .hbtn { display:inline-flex; align-items:center; gap:4px; min-height:42px; padding:0 12px; border-radius:12px; background:#fbbf24; color:#111; font-weight:900; font-size:15px; }
-  .mini { min-height:34px; padding:0 10px; border-radius:10px; background:#1b2430; border:1px solid #334155; font-weight:800; font-size:14px; }
-  .net { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:800; padding:6px 10px; border-radius:999px; background:#111821; border:1px solid #263241; white-space:nowrap; }
-  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
-  .dot.on { background:#22c55e; box-shadow:0 0 8px #22c55e; }
-  .dot.off { background:#ef4444; box-shadow:0 0 8px #ef4444; animation: blink 1.4s infinite; }
-  @keyframes blink { 50% { opacity:.35; } }
-  .banner { border-radius:14px; padding:10px 12px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; }
-
-  /* Slider */
-  .ticks { position:absolute; left:12px; right:12px; top:50%; height:0; pointer-events:none; }
-  .tick { position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px; border-radius:50%; background:#22d3ee; box-shadow:0 0 0 2px #0b0f14; }
-  input[type=range].tl { -webkit-appearance:none; appearance:none; width:100%; height:34px; background:transparent; position:relative; z-index:1; margin:0; }
-  input[type=range].tl::-webkit-slider-runnable-track { height:8px; border-radius:99px; background:linear-gradient(90deg,#1e3a5f,#334155); }
-  input[type=range].tl::-moz-range-track { height:8px; border-radius:99px; background:#334155; }
-  input[type=range].tl::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; margin-top:-10px; box-shadow:0 0 0 2px #fbbf24; }
-  input[type=range].tl::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:#fbbf24; border:4px solid #0b0f14; }
-
-  /* 卡片 */
-  .node-card { background:var(--card); border:1px solid #263241; border-radius:20px; overflow:hidden; scroll-margin-top:calc(var(--hdr) + 10px); transition: opacity .25s, box-shadow .25s; }
-  .node-card.is-past { opacity:.55; }
-  .node-card.is-now { box-shadow:0 0 0 2px #34d399, 0 0 24px rgba(52,211,153,.25); }
-  .node-card.is-focus { box-shadow:0 0 0 3px #fbbf24, 0 0 24px rgba(251,191,36,.3); }
-  .idx { width:34px; height:34px; flex-shrink:0; border-radius:10px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; display:flex; align-items:center; justify-content:center; }
-  .leg { background:#0f141b; border-bottom:1px solid #263241; padding:12px 14px; }
-  .leg-grid { display:grid; grid-template-columns:auto 1fr; gap:8px 10px; align-items:center; margin-top:8px; }
-  .lbl { font-size:13px; font-weight:900; color:#0b0f14; background:#7dd3fc; border-radius:6px; padding:2px 7px; justify-self:start; white-space:nowrap; }
-  .lbl.off { background:#fda4af; }
-  .stn { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; text-align:left; padding:6px 10px; border-radius:10px; background:#1b2430; border:1px solid #2d3b4d; font-weight:800; color:#fff; min-height:42px; font-size:16px; }
-  .stn .ja { color:#67e8f9; font-weight:700; font-size:14px; }
-  .stn .go { font-size:12px; color:#fbbf24; font-weight:800; }
-  .warn { margin-top:10px; background:#3b2a07; border:1px solid #92400e; color:#fde68a; border-radius:12px; padding:8px 10px; font-size:15px; font-weight:600; }
-  .note { margin-top:10px; background:#111821; border:1px dashed #334155; color:#cbd5e1; border-radius:12px; padding:8px 10px; font-size:15px; white-space:pre-wrap; }
-  .tbox { background:#0f141b; border:1px solid #263241; border-radius:14px; padding:6px 4px; text-align:center; }
-  .tbox .k { font-size:12px; color:#94a3b8; font-weight:800; }
-  .tbox .v { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.15; color:#fff; }
-  .tbox.stay { background:#fbbf24; border-color:#fbbf24; }
-  .tbox.stay .k { color:#422006; } .tbox.stay .v { color:#111; }
-  .tbox.dep .v { color:#fca5a5; }
-  .sbtn { min-height:48px; border-radius:12px; font-weight:900; font-size:17px; border:1px solid #334155; background:#1b2430; font-variant-numeric:tabular-nums; }
-  .sbtn.minus { color:#93c5fd; } .sbtn.plus { color:#fcd34d; } .sbtn.plus2 { color:#fb923c; }
-  .sbtn.edit { color:#e5e7eb; }
-  .live { display:inline-flex; align-items:center; gap:6px; font-weight:900; border-radius:999px; padding:6px 12px; font-size:15px; }
-  .live-now { background:#064e3b; color:#6ee7b7; }
-  .live-urgent { background:#7f1d1d; color:#fecaca; animation: blink 1.2s infinite; }
-  .live-next { background:#1e293b; color:#cbd5e1; }
-  .live-past { background:#1f2937; color:#9ca3af; }
-  .live-move { background:#0c4a6e; color:#bae6fd; }
-  .subt { display:inline-block; border-radius:10px; padding:4px 8px; background:#1b2430; border:1px solid #334155; font-weight:900; font-size:15px; color:#fbbf24; font-variant-numeric:tabular-nums; }
-  .subt small { display:block; color:#94a3b8; font-size:12px; font-weight:700; }
-
-  /* 記帳 */
-  .chip { padding:7px 12px; border-radius:999px; border:1px solid #334155; font-weight:800; font-size:15px; background:#111821; min-height:40px; }
-  .chip.on { background:var(--c); color:#0b0f14; border-color:var(--c); }
-  .inp { width:100%; background:#0b0f14; border:1px solid #334155; border-radius:12px; padding:10px 12px; color:#fff; min-height:48px; }
-  .inp:focus { outline:none; border-color:#22d3ee; box-shadow:0 0 0 2px rgba(34,211,238,.25); }
-  .exp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid #1f2a37; }
-  .catdot { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-  .xbtn { width:38px; height:38px; border-radius:10px; background:#1f2937; color:#f87171; font-weight:900; font-size:18px; flex-shrink:0; }
-  .addbtn { min-height:48px; border-radius:12px; background:#22d3ee; color:#0b0f14; font-weight:900; font-size:17px; padding:0 16px; white-space:nowrap; }
-
-  /* Bottom nav */
-  .navb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:800; color:#cbd5e1; min-height:58px; }
-  .navb .ic { font-size:22px; line-height:1; }
-  .navb.main .ic { width:48px; height:48px; border-radius:16px; background:#22d3ee; color:#0b0f14; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; margin-top:-18px; box-shadow:0 6px 18px rgba(34,211,238,.35); }
-
-  /* Modal / Sheet */
-  .modal { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; justify-content:flex-end; }
-  .modal .bd { position:absolute; inset:0; background:rgba(0,0,0,.7); }
-  .sheet { position:relative; background:#111821; border-top-left-radius:22px; border-top-right-radius:22px; max-height:92vh; overflow-y:auto; -webkit-overflow-scrolling:touch; animation: up .22s ease-out; border-top:1px solid #263241; }
-  .sheet.full { max-height:100vh; height:100%; border-radius:0; border:0; }
-  @keyframes up { from { transform:translateY(40px); opacity:.4; } }
-  .sheet-h { position:sticky; top:0; z-index:2; background:#111821; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #1f2a37; }
-  .sheet-h h2 { font-size:20px; font-weight:900; margin:0; }
-  .xclose { min-width:44px; height:44px; border-radius:12px; background:#1f2937; font-size:20px; font-weight:900; }
-  .fl { display:block; font-size:14px; font-weight:800; color:#94a3b8; margin:12px 0 6px; }
-  .btn { min-height:50px; border-radius:14px; font-weight:900; font-size:17px; padding:0 16px; }
-  .btn-pri { background:#22d3ee; color:#0b0f14; }
-  .btn-amb { background:#fbbf24; color:#111; }
-  .btn-sec { background:#1f2937; color:#e5e7eb; border:1px solid #334155; }
-  .btn-dan { background:#7f1d1d; color:#fecaca; }
-  .sec-title { font-size:15px; font-weight:900; color:#94a3b8; letter-spacing:.04em; margin:20px 0 10px; }
-  .bar { height:14px; border-radius:99px; background:#1f2937; overflow:hidden; }
-  .bar > div { height:100%; border-radius:99px; transition: width .4s; }
-
-  /* Toast */
-  #toast { position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom)); z-index:90; background:#f8fafc; color:#0b0f14; border-radius:14px; padding:12px 14px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:10px; box-shadow:0 10px 30px rgba(0,0,0,.5); }
-  #toast button { margin-left:auto; background:#0b0f14; color:#fbbf24; border-radius:10px; padding:8px 12px; font-weight:900; white-space:nowrap; }
-
-  /* 指路大卡 */
-  .dir { position:fixed; inset:0; z-index:80; display:flex; flex-direction:column; background:#000; color:#fff; }
-  .dir.bright { background:#facc15; color:#000; }
-  .dir-top { display:flex; justify-content:space-between; gap:10px; padding-left:14px; padding-right:14px; padding-bottom:8px; }
-  .dir-top button { min-height:48px; padding:0 16px; border-radius:14px; font-weight:900; font-size:17px; background:#262626; color:#fff; }
-  .dir.bright .dir-top button { background:#000; color:#facc15; }
-  .dir-body { flex:1; overflow-y:auto; padding:6px 20px 16px; display:flex; flex-direction:column; justify-content:center; }
-  .dir-label { font-size:18px; font-weight:800; opacity:.7; }
-  .dir-dest { font-size:clamp(44px, 13vw, 76px); font-weight:900; line-height:1.1; margin:4px 0; word-break:break-all; }
-  .dir-roma { font-size:20px; font-weight:700; opacity:.75; }
-  .dir-line { display:inline-block; margin-top:12px; font-size:22px; font-weight:900; padding:6px 12px; border-radius:12px; background:#1f2937; }
-  .dir.bright .dir-line { background:#000; color:#facc15; }
-  .dir-phrase { font-size:clamp(30px, 8.6vw, 48px); font-weight:900; line-height:1.3; margin-top:22px; padding:16px; border:4px solid currentColor; border-radius:18px; }
-  .dir-zh { font-size:18px; font-weight:700; margin-top:14px; opacity:.8; }
-  .dir-foot { font-size:24px; font-weight:900; margin-top:10px; }
-  .dir-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 12px; background:#111; }
-  .dir.bright .dir-tabs { background:#000; }
-  .dir-tabs button { min-height:52px; border-radius:12px; background:#262626; color:#fff; font-weight:900; font-size:15px; }
-  .dir-tabs button.on { background:#22d3ee; color:#000; }
-  .hide-sb::-webkit-scrollbar { display:none; }
-
-  /* Tailwind 備援：本 App 用到的工具類別。首次開啟就斷網、CDN 載不到時版面仍正常 */
-  .flex{display:flex}.grid{display:grid}.relative{position:relative}.fixed{position:fixed}.sticky{position:sticky}
-  .top-0{top:0}.bottom-0{bottom:0}.left-0{left:0}.right-0{right:0}.z-40{z-index:40}.z-50{z-index:50}
+  /* 小工具類別 */
+  .flex{display:flex}.grid{display:grid}.relative{position:relative}
   .flex-1{flex:1 1 0%}.shrink-0{flex-shrink:0}.min-w-0{min-width:0}.w-full{width:100%}
   .items-center{align-items:center}.items-start{align-items:flex-start}.justify-between{justify-content:space-between}
   .gap-2{gap:.5rem}.gap-3{gap:.75rem}
   .grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid-cols-5{grid-template-columns:repeat(5,minmax(0,1fr))}.col-span-2{grid-column:span 2/span 2}
-  .space-y-4>:not([hidden])~:not([hidden]){margin-top:1rem}
-  .mx-4{margin-left:1rem;margin-right:1rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}
-  .px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}
-  .pt-1{padding-top:.25rem}.pt-2{padding-top:.5rem}.pt-3{padding-top:.75rem}
-  .pb-2{padding-bottom:.5rem}.pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-10{padding-bottom:2.5rem}
-  .text-xs{font-size:.75rem;line-height:1rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xl{font-size:1.25rem;line-height:1.75rem}
+  .mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-5{margin-top:1.25rem}
+  .pb-4{padding-bottom:1rem}.pb-6{padding-bottom:1.5rem}.pb-8{padding-bottom:2rem}.pb-10{padding-bottom:2.5rem}
+  .text-xs{font-size:.78rem}.text-sm{font-size:.9rem}.text-lg{font-size:1.15rem}.text-xl{font-size:1.3rem}
   .font-bold{font-weight:700}.font-extrabold{font-weight:800}
   .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .text-white{color:#fff}.text-slate-300{color:#cbd5e1}.text-slate-400{color:#94a3b8}.text-slate-500{color:#64748b}
-  .text-amber-300{color:#fcd34d}.text-cyan-300{color:#67e8f9}.text-sky-300{color:#7dd3fc}.text-emerald-300{color:#6ee7b7}.text-rose-300{color:#fda4af}
-  .text-xs.text-slate-400{color:#94a3b8}
-  details summary{cursor:pointer}
+  .muted{color:var(--ink3)}.muted2{color:var(--ink2)}
+  .hide-sb{scrollbar-width:none}.hide-sb::-webkit-scrollbar{display:none}
 
-  /* 每日分頁 */
-  .days { display:flex; gap:8px; overflow-x:auto; padding:8px 16px 2px; scroll-snap-type:x proximity; }
-  .dchip { position:relative; flex-shrink:0; min-width:78px; padding:6px 10px 7px; border-radius:14px; background:#111821; border:1px solid #263241; text-align:center; line-height:1.25; scroll-snap-align:start; }
-  .dchip b { display:block; font-size:16px; font-weight:900; color:#e5e7eb; }
-  .dchip span { display:block; font-size:12px; color:#94a3b8; font-weight:700; white-space:nowrap; }
-  .dchip.on { background:#22d3ee; border-color:#22d3ee; }
-  .dchip.on b, .dchip.on span { color:#0b0f14; }
-  .dchip.past b { color:#64748b; }
-  .dchip .today { position:absolute; top:-7px; right:-4px; background:#34d399; color:#052e1c; font-size:11px; font-weight:900; border-radius:99px; padding:1px 6px; }
-  .dchip.add { min-width:56px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:#67e8f9; border-style:dashed; }
-  #preview-bar { margin:6px 16px 0; border-radius:12px; padding:7px 12px; background:#312e81; color:#e0e7ff; font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
-  #preview-bar.hidden { display:none !important; }
-  #preview-bar button { margin-left:auto; background:#e0e7ff; color:#312e81; border-radius:9px; padding:5px 10px; font-weight:900; white-space:nowrap; }
-  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#0b0f14; border:1px solid #263241; border-radius:12px; padding:4px; margin-top:12px; }
-  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:#94a3b8; }
-  .seg button.on { background:#22d3ee; color:#0b0f14; }
-  .dayhead { font-weight:900; color:#67e8f9; font-size:15px; margin:14px 0 6px; }
+  /* ===== Header ===== */
+  #hdr { position:sticky; top:0; z-index:40; padding-top:env(safe-area-inset-top,0px);
+    background:var(--paper); border-bottom:2px dashed var(--line); }
+  .hdr-row { display:flex; align-items:flex-start; gap:8px; padding-top:8px; }
+  #trip-title { margin:0; font-family:var(--f-hand); font-weight:600; font-size:22px; line-height:1.25; color:var(--ink); text-wrap:balance; }
+  #trip-date { font-size:13px; color:var(--ink3); font-weight:700; margin-top:1px; }
+  #arch-state { font-size:12px; font-weight:800; margin-top:2px; color:var(--ai); }
+  #arch-state.stale { color:var(--money); }
+  .net { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; padding:5px 9px; border-radius:999px;
+    background:var(--card); border:1.5px solid var(--line); white-space:nowrap; color:var(--ink2); }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.on { background:var(--matcha); }
+  .dot.off { background:var(--shu); animation:blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity:.3; } }
+  .hbtn { display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 10px; border-radius:10px;
+    background:var(--card); border:1.5px solid var(--ink); color:var(--ink); font-weight:800; font-size:15px; box-shadow:2px 2px 0 var(--ink); }
+  .arch-btn { display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 10px; border-radius:10px;
+    background:var(--ai); color:#fffcf4; font-weight:800; font-size:14px; box-shadow:2px 2px 0 var(--ink); white-space:nowrap; }
+  .mini { min-height:34px; padding:0 10px; border-radius:9px; background:var(--card); border:1.5px solid var(--line); font-weight:800; font-size:14px; color:var(--ink2); }
+
+  /* 每日分頁：像筆記本的索引標籤 */
+  .days { display:flex; gap:6px; overflow-x:auto; padding:10px max(16px, env(safe-area-inset-right,0px)) 0 max(16px, env(safe-area-inset-left,0px)); }
+  .dchip { position:relative; flex-shrink:0; min-width:76px; padding:7px 10px 6px; border-radius:12px 12px 4px 4px;
+    background:var(--paper2); border:1.5px solid var(--line); text-align:center; line-height:1.2; }
+  .dchip b { display:block; font-family:var(--f-hand); font-weight:600; font-size:16px; color:var(--ink2); }
+  .dchip span { display:block; font-size:12px; color:var(--ink3); font-weight:700; white-space:nowrap; font-family:var(--f-num); }
+  .dchip.on { background:var(--card); border-color:var(--ink); box-shadow:2px 2px 0 var(--ink); }
+  .dchip.on b { color:var(--ink); }
+  .dchip.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:5px; background:var(--tape); border-radius:2px; }
+  .dchip.past b, .dchip.past span { color:var(--ink4); }
+  .dchip .today { position:absolute; top:-9px; right:-6px; width:30px; height:30px; border-radius:50%;
+    border:2px solid var(--shu); color:var(--shu); background:var(--card); font-style:normal; font-size:11px; font-weight:900;
+    display:flex; align-items:center; justify-content:center; transform:rotate(-12deg); font-family:var(--f-hand); }
+  .dchip.add { min-width:50px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:900; color:var(--ai); border-style:dashed; background:transparent; }
+  #preview-bar { margin:8px 0 0; border-radius:10px; padding:7px 12px; background:var(--tape); color:var(--ink);
+    font-weight:800; font-size:14px; display:flex; align-items:center; gap:8px; }
+  #preview-bar button { margin-left:auto; background:var(--ink); color:var(--paper); border-radius:8px; padding:5px 10px; font-weight:900; white-space:nowrap; }
+
+  .banner { border-radius:12px; padding:9px 12px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1.5px solid transparent; }
+  .b-now { background:var(--matcha-pale); color:var(--matcha); border-color:var(--matcha); }
+  .b-urgent { background:var(--shu); color:#fffcf4; }
+  .b-next { background:var(--ai-pale); color:var(--ai); border-color:var(--ai); }
+  .b-done { background:var(--card); color:var(--ink2); border:1.5px dashed var(--line); }
+  .b-off { background:var(--card); color:var(--ink3); border:1.5px dashed var(--line); font-size:14px; }
+
+  /* 時間軸 */
+  .tl-head { display:flex; align-items:center; gap:8px; font-size:14px; }
+  #slider-label { font-family:var(--f-num); font-weight:700; font-size:20px; color:var(--shu); }
+  .ticks { position:absolute; left:12px; right:12px; top:50%; height:0; pointer-events:none; z-index:2; }
+  .tick { position:absolute; width:8px; height:8px; margin-left:-4px; margin-top:-4px; border-radius:50%; background:var(--ai); box-shadow:0 0 0 2px var(--paper); }
+  input[type=range].tl { -webkit-appearance:none; appearance:none; width:100%; height:32px; background:transparent; position:relative; z-index:1; margin:0; }
+  input[type=range].tl::-webkit-slider-runnable-track { height:6px; border-radius:99px; background:var(--line); }
+  input[type=range].tl::-moz-range-track { height:6px; border-radius:99px; background:var(--line); }
+  input[type=range].tl::-webkit-slider-thumb { -webkit-appearance:none; width:26px; height:26px; border-radius:50%; background:var(--card); border:3px solid var(--shu); margin-top:-10px; position:relative; z-index:3; }
+  input[type=range].tl::-moz-range-thumb { width:20px; height:20px; border-radius:50%; background:var(--card); border:3px solid var(--shu); }
+  .tl-scale { display:flex; justify-content:space-between; font-size:11px; color:var(--ink3); padding:0 4px; font-family:var(--f-num); }
+
+  /* ===== 路線軸 ===== */
+  #list { padding-top:14px; padding-bottom:calc(120px + env(safe-area-inset-bottom,0px)); }
+  .route { position:relative; }
+  /* 底層虛線：沒有交通段的地方用虛線連起來 */
+  .route::before { content:""; position:absolute; left:calc(var(--rail) / 2 - 1px); top:20px; bottom:20px; border-left:2.5px dotted var(--ink4); }
+  .stop { position:relative; padding-left:var(--rail); scroll-margin-top:calc(var(--hdr, 220px) + 10px); }
+  .stop + .stop { margin-top:14px; }
+
+  /* 交通段（像 Google 地圖的大眾運輸路線） */
+  .leg { position:relative; padding:4px 0 12px; --m:var(--m-other); }
+  .leg.m-train{--m:var(--m-train)} .leg.m-tram{--m:var(--m-tram)} .leg.m-bus{--m:var(--m-bus)} .leg.m-walk{--m:var(--m-walk)}
+  .leg::before { content:""; position:absolute; left:calc(var(--rail) / -2 - 4px); width:8px; top:18px; bottom:22px; border-radius:4px; background:var(--m); }
+  .leg.m-walk::before { background:none; border-left:4px dotted var(--m); width:0; left:calc(var(--rail) / -2 - 2px); }
+  .lrow { position:relative; display:flex; align-items:center; gap:8px; min-height:44px; }
+  .lrow .pin { position:absolute; left:calc(var(--rail) / -2 - 9px); width:18px; height:18px; border-radius:50%; background:var(--card); border:4px solid var(--m); z-index:1; }
+  .lrow .t { font-family:var(--f-num); font-weight:700; font-size:16px; color:var(--ink); min-width:46px; }
+  .lrow .lab { font-size:12px; font-weight:900; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+  .lab.on { background:var(--paper2); color:var(--ink2); border:1px solid var(--line); }
+  .lab.off { background:var(--shu); color:#fffcf4; }
+  .lmid { position:relative; padding:6px 0 6px 0; }
+  .linebadge { display:inline-flex; align-items:center; gap:6px; max-width:100%; background:var(--m); color:#fffcf4; font-weight:800; font-size:15px; border-radius:8px; padding:5px 10px; line-height:1.3; }
+  .lineja { font-size:14px; color:var(--ai); font-weight:700; margin-top:3px; }
+  .lmeta { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-top:6px; font-size:14px; color:var(--ink2); font-weight:700; }
+  .viatog { display:inline-flex; align-items:center; gap:4px; min-height:36px; padding:0 10px; border-radius:999px; border:1.5px solid var(--m); color:var(--m); font-weight:800; font-size:14px; background:var(--card); }
+  .via { list-style:none; margin:6px 0 2px; padding:0; }
+  .via li { position:relative; display:flex; align-items:baseline; gap:8px; padding:5px 0; font-size:15px; color:var(--ink2); }
+  .via li::before { content:""; position:absolute; left:calc(var(--rail) / -2 - 5px); top:11px; width:10px; height:10px; border-radius:50%; background:var(--card); border:2.5px solid var(--m); z-index:1; }
+  .via .vn { font-weight:700; color:var(--ink); }
+  .via .vj { font-size:13px; color:var(--ai); font-family:var(--f-num); }
+  .via li.last-hint { color:var(--shu); font-weight:800; font-size:13px; padding-top:2px; }
+  .via li.last-hint::before { display:none; }
+  .stn { display:inline-flex; flex-wrap:wrap; align-items:baseline; gap:2px 8px; text-align:left; padding:6px 10px; border-radius:10px;
+    background:var(--card); border:1.5px solid var(--line); font-weight:800; color:var(--ink); min-height:42px; font-size:16px; max-width:100%; }
+  .stn .ja { color:var(--ai); font-weight:700; font-size:14px; }
+  .stn .go { font-size:12px; color:var(--ink3); font-weight:800; }
+  .stn.off { border-color:var(--shu); box-shadow:2px 2px 0 var(--shu-pale); }
+  .warn { margin-top:8px; background:var(--warn-bg); border-left:4px solid var(--yama); color:var(--warn-ink); border-radius:6px; padding:8px 10px; font-size:15px; font-weight:600; }
+
+  /* 景點卡：貼在筆記本上的便條 */
+  .node-card { position:relative; background:var(--card); border:1.5px solid var(--line); border-radius:6px 14px 14px 14px;
+    box-shadow:0 1px 0 var(--line), 3px 4px 0 rgba(43,38,34,.06); transition:opacity .25s, box-shadow .25s; }
+  .node-card::before { content:""; position:absolute; top:-9px; left:22px; width:74px; height:18px; background:var(--tape); transform:rotate(-4deg); border-radius:2px; }
+  .stop.is-past .node-card { opacity:.6; }
+  .stop.is-now .node-card { border-color:var(--matcha); box-shadow:0 0 0 2px var(--matcha); }
+  .stop.is-focus .node-card { border-color:var(--shu); box-shadow:0 0 0 2px var(--shu); }
+  .idx { position:absolute; left:calc(var(--rail) * -1 + 3px); top:12px; width:34px; height:34px; border-radius:50%;
+    background:var(--ink); color:var(--paper); font-family:var(--f-num); font-weight:700; font-size:17px; display:flex; align-items:center; justify-content:center; z-index:2; box-shadow:0 0 0 3px var(--paper); }
+  .stop.is-now .idx { background:var(--matcha); }
+  .card-in { padding:14px 12px 12px; }
+  .pname { font-family:var(--f-hand); font-weight:600; font-size:22px; line-height:1.25; color:var(--ink); word-break:break-word; text-wrap:balance; }
+  .pja { font-size:15px; font-weight:700; color:var(--ai); margin-top:2px; font-family:var(--f-num); }
+  .pja small { color:var(--ink3); font-weight:500; font-size:13px; }
+  .phint { font-size:12px; color:var(--ink3); margin-top:2px; }
+  .subt { display:inline-block; text-align:right; font-family:var(--f-num); font-weight:700; font-size:15px; color:var(--money); line-height:1.2; }
+  .subt small { display:block; color:var(--ink3); font-size:12px; font-weight:500; }
+  .times { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:12px; }
+  .tbox { border:1.5px solid var(--line); border-radius:10px; padding:5px 2px; text-align:center; background:var(--card); }
+  .tbox .k { font-size:12px; color:var(--ink3); font-weight:800; }
+  .tbox .v { font-family:var(--f-num); font-size:23px; font-weight:700; line-height:1.15; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .tbox.stay { background:var(--tape); border-color:transparent; transform:rotate(-1deg); }
+  .tbox.stay .k { color:var(--ink2); }
+  .tbox.dep .v { color:var(--shu); }
+  .shifts { display:grid; grid-template-columns:1fr 1fr 1fr .8fr; gap:6px; margin-top:10px; }
+  .sbtn { min-height:46px; border-radius:10px; font-family:var(--f-num); font-weight:700; font-size:16px; border:1.5px solid var(--line); background:var(--paper2); color:var(--ink); }
+  .sbtn.minus { color:var(--ai); } .sbtn.plus, .sbtn.plus2 { color:var(--shu); }
+  .live { display:inline-flex; align-items:center; gap:6px; font-weight:800; border-radius:999px; padding:5px 12px; font-size:14px; }
+  .live-now { background:var(--matcha-pale); color:var(--matcha); }
+  .live-urgent { background:var(--shu); color:#fffcf4; animation:blink 1.2s infinite; }
+  .live-next { background:var(--paper2); color:var(--ink2); }
+  .live-past { background:var(--paper2); color:var(--ink3); }
+  .live-move { background:var(--ai-pale); color:var(--ai); }
+  .note { margin-top:10px; background:repeating-linear-gradient(var(--card) 0 25px, var(--line2) 25px 26px); border-radius:6px; color:var(--ink2); padding:2px 8px 4px; font-size:15px; line-height:26px; white-space:pre-wrap; }
+
+  /* 記帳 */
+  .exp-tog { display:flex; align-items:center; justify-content:space-between; width:100%; padding:11px 12px; border-top:1.5px dashed var(--line); }
+  .chip { padding:6px 12px; border-radius:999px; border:1.5px solid var(--line); font-weight:800; font-size:15px; background:var(--card); min-height:40px; color:var(--ink2); }
+  .chip.on { background:var(--c); color:#fffcf4; border-color:var(--c); }
+  .inp { width:100%; background:var(--paper2); border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; color:var(--ink); min-height:48px; }
+  .inp:focus { outline:none; border-color:var(--ai); background:var(--card); }
+  .exp-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px dashed var(--line); }
+  .catdot { width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .xbtn { width:38px; height:38px; border-radius:10px; background:var(--shu-pale); color:var(--shu); font-weight:900; font-size:17px; flex-shrink:0; }
+  .addbtn { min-height:48px; border-radius:10px; background:var(--ink); color:var(--paper); font-weight:900; font-size:16px; padding:0 14px; white-space:nowrap; }
+
+  /* 底部導覽 */
+  #nav { position:fixed; bottom:0; left:0; right:0; z-index:50; background:var(--card); border-top:2px solid var(--ink);
+    padding-bottom:max(env(safe-area-inset-bottom,0px), 6px); padding-left:env(safe-area-inset-left,0px); padding-right:env(safe-area-inset-right,0px); }
+  .navb { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:12px; font-weight:800; color:var(--ink2); min-height:58px; }
+  .navb .ic { font-size:21px; line-height:1; }
+  .navb.main .ic { width:50px; height:50px; border-radius:50%; background:var(--shu); color:#fffcf4; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:900; margin-top:-20px; border:3px solid var(--card); box-shadow:2px 3px 0 var(--ink); }
+
+  /* 彈出視窗 */
+  .modal { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; justify-content:flex-end; }
+  .modal .bd { position:absolute; inset:0; background:rgba(43,38,34,.45); }
+  .sheet { position:relative; background:var(--paper); border-top-left-radius:18px; border-top-right-radius:18px; max-height:92vh; overflow-y:auto;
+    -webkit-overflow-scrolling:touch; animation:up .22s ease-out; border-top:2px solid var(--ink); }
+  .sheet.full { max-height:100vh; height:100%; border-radius:0; border:0; padding-top:env(safe-area-inset-top,0px); }
+  @keyframes up { from { transform:translateY(40px); opacity:.4; } }
+  .sheet-h { position:sticky; top:0; z-index:2; background:var(--paper); display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:2px dashed var(--line); }
+  .sheet-h h2 { font-family:var(--f-hand); font-weight:600; font-size:21px; margin:0; }
+  .sheet-body { padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); }
+  .xclose { min-width:44px; height:44px; border-radius:10px; background:var(--card); border:1.5px solid var(--line); font-size:19px; font-weight:900; color:var(--ink2); }
+  .fl { display:block; font-size:14px; font-weight:800; color:var(--ink3); margin:12px 0 6px; }
+  .btn { min-height:50px; border-radius:12px; font-weight:900; font-size:16px; padding:0 14px; }
+  .btn-pri { background:var(--ai); color:#fffcf4; box-shadow:2px 2px 0 var(--ink); }
+  .btn-amb { background:var(--yama); color:var(--ink); box-shadow:2px 2px 0 var(--ink); }
+  .btn-sec { background:var(--card); color:var(--ink); border:1.5px solid var(--line); }
+  .btn-dan { background:var(--shu-pale); color:var(--shu); border:1.5px solid var(--shu); }
+  .sec-title { font-family:var(--f-hand); font-weight:600; font-size:17px; color:var(--ink2); margin:20px 0 8px; display:flex; align-items:center; gap:8px; }
+  .sec-title::after { content:""; flex:1; border-bottom:1.5px dashed var(--line); }
+  .bar { height:14px; border-radius:99px; background:var(--paper2); overflow:hidden; border:1px solid var(--line); }
+  .bar > div { height:100%; border-radius:99px; transition:width .4s; }
+  .panel { background:var(--card); border:1.5px solid var(--line); border-radius:12px; padding:12px 14px; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:4px; background:var(--paper2); border:1.5px solid var(--line); border-radius:12px; padding:4px; margin-top:12px; }
+  .seg button { min-height:40px; border-radius:9px; font-weight:900; font-size:15px; color:var(--ink3); }
+  .seg button.on { background:var(--card); color:var(--ink); box-shadow:1px 1px 0 var(--ink); border:1.5px solid var(--ink); }
+  .dayhead { font-family:var(--f-hand); font-weight:600; color:var(--ai); font-size:16px; margin:14px 0 6px; }
+  .total-card { margin-top:14px; background:var(--card); border:2px solid var(--ink); border-radius:14px; padding:16px; box-shadow:3px 3px 0 var(--ink); position:relative; }
+  .total-card::before { content:""; position:absolute; top:-9px; right:24px; width:70px; height:18px; background:var(--tape2); transform:rotate(5deg); }
+  .total-card .big { font-family:var(--f-num); font-weight:700; font-size:42px; line-height:1.1; color:var(--ink); }
+  .total-card .twd { font-family:var(--f-num); font-weight:700; font-size:21px; color:var(--money); }
+
+  #toast { position:fixed; left:max(16px, env(safe-area-inset-left,0px)); right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(84px + env(safe-area-inset-bottom,0px)); z-index:90;
+    background:var(--ink); color:var(--paper); border-radius:12px; padding:12px 14px; font-weight:800; font-size:15px; display:flex; align-items:center; gap:10px; box-shadow:0 8px 24px rgba(43,38,34,.3); }
+  #toast button { margin-left:auto; background:var(--yama); color:var(--ink); border-radius:9px; padding:7px 12px; font-weight:900; white-space:nowrap; }
+
+  /* 指路大卡：刻意維持黑底／黃底高對比，給司機和路人看 */
+  .dir { position:fixed; inset:0; z-index:80; display:flex; flex-direction:column; background:#000; color:#fff; }
+  .dir.bright { background:#facc15; color:#000; }
+  .dir-top { display:flex; justify-content:space-between; gap:10px; padding:max(env(safe-area-inset-top,0px),10px) 14px 8px; }
+  .dir-top button { min-height:48px; padding:0 16px; border-radius:14px; font-weight:900; font-size:17px; background:#262626; color:#fff; }
+  .dir.bright .dir-top button { background:#000; color:#facc15; }
+  .dir-body { flex:1; overflow-y:auto; padding:6px 20px 16px; display:flex; flex-direction:column; justify-content:center; }
+  .dir-label { font-size:18px; font-weight:800; opacity:.7; }
+  .dir-dest { font-size:clamp(44px, 13vw, 76px); font-weight:900; line-height:1.1; margin:4px 0; word-break:break-all; font-family:var(--f-num); }
+  .dir-roma { font-size:20px; font-weight:700; opacity:.75; }
+  .dir-line { display:inline-block; margin-top:12px; font-size:22px; font-weight:900; padding:6px 12px; border-radius:12px; background:#1f2937; color:#fff; }
+  .dir.bright .dir-line { background:#000; color:#facc15; }
+  .dir-phrase { font-size:clamp(30px, 8.6vw, 48px); font-weight:900; line-height:1.3; margin-top:22px; padding:16px; border:4px solid currentColor; border-radius:18px; font-family:var(--f-num); }
+  .dir-zh { font-size:18px; font-weight:700; margin-top:14px; opacity:.8; }
+  .dir-foot { font-size:24px; font-weight:900; margin-top:10px; font-family:var(--f-num); }
+  .dir-tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 12px max(env(safe-area-inset-bottom,0px),10px); background:#111; }
+  .dir.bright .dir-tabs { background:#000; }
+  .dir-tabs button { min-height:52px; border-radius:12px; background:#262626; color:#fff; font-weight:900; font-size:15px; }
+  .dir-tabs button.on { background:#facc15; color:#000; }
+
+  details summary { cursor:pointer; }
+  .empty { text-align:center; padding:50px 8px; color:var(--ink3); }
+  .empty h3 { font-family:var(--f-hand); font-weight:600; font-size:22px; color:var(--ink); margin:10px 0; }
+
+  .hdr-row { align-items:center; }
+  #trip-title { font-size:21px; }
+  .meta-row { display:flex; align-items:center; gap:6px; margin-top:4px; }
+  #trip-date { font-size:13px; }
+  .arch-btn { min-height:34px; font-size:13px; padding:0 9px; border-radius:9px; }
+  .hbtn { min-height:38px; }
+  .net.stale { border-color:var(--yama); background:var(--warn-bg); color:var(--warn-ink); }
+  .dchip .today { top:-12px; right:-8px; width:26px; height:26px; font-size:10px; }
+  #banner .banner { padding:7px 12px; }
 </style>
 </head>
 
 <body>
 <!-- ========== Header ========== -->
-<header id="hdr" class="sticky top-0 z-40 safe-top" style="background:rgba(11,15,20,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid #1f2a37">
-  <div class="px-4 pt-1 flex items-center gap-2">
-    <div class="flex-1 min-w-0">
-      <h1 id="trip-title" class="text-lg font-extrabold truncate" style="margin:0">行程守護</h1>
-      <div id="trip-date" class="text-xs text-slate-400"></div>
+<header id="hdr">
+  <div class="gutter">
+    <div class="hdr-row">
+      <h1 id="trip-title" class="flex-1 min-w-0 truncate">行程守護</h1>
+      <button data-act="openAna" class="press hbtn shrink-0">💴 <span id="hdr-total" class="tabnum">¥0</span></button>
     </div>
-    <div id="net" class="net"></div>
-    <button data-act="openAna" class="press hbtn">💰 <span id="hdr-total" class="tabnum">¥0</span></button>
+    <div class="meta-row">
+      <div id="trip-date" class="flex-1 min-w-0 truncate"></div>
+      <div id="net" class="net shrink-0"></div>
+      <button id="arch-btn" data-act="archive" class="press arch-btn hidden shrink-0">📦 封存</button>
+    </div>
   </div>
   <div id="days" class="days hide-sb"></div>
-  <div id="preview-bar" class="hidden"></div>
-  <div id="banner" class="mx-4 mt-2"></div>
-  <div class="px-4 pt-2 pb-2">
-    <div class="flex items-center gap-2 text-sm">
-      <span class="text-slate-400 font-bold">時間軸</span>
-      <span id="slider-label" class="font-extrabold text-amber-300 text-lg tabnum">--:--</span>
-      <span id="slider-target" class="text-slate-300 font-bold truncate flex-1 min-w-0"></span>
-      <button data-act="now" class="press mini">📍 現在</button>
-    </div>
-    <div class="relative" style="margin-top:2px">
-      <div id="ticks" class="ticks"></div>
-      <input id="slider" class="tl" type="range" min="360" max="1320" step="5" value="480" aria-label="時間軸">
-    </div>
-    <div class="flex justify-between text-slate-500 tabnum" style="font-size:11px;padding:0 4px">
-      <span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>22:00</span>
+  <div class="gutter">
+    <div id="preview-bar" class="hidden"></div>
+    <div id="banner" class="mt-2"></div>
+    <div style="padding:8px 0 6px">
+      <div class="tl-head">
+        <span class="muted font-bold">時間軸</span>
+        <span id="slider-label" class="tabnum">--:--</span>
+        <span id="slider-target" class="muted2 font-bold truncate flex-1 min-w-0"></span>
+        <button data-act="now" class="press mini">📍 現在</button>
+      </div>
+      <div class="relative">
+        <div id="ticks" class="ticks"></div>
+        <input id="slider" class="tl" type="range" min="360" max="1320" step="5" value="480" aria-label="時間軸">
+      </div>
+      <div class="tl-scale"><span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span><span>22:00</span></div>
     </div>
   </div>
 </header>
 
-<!-- ========== 行程列表 ========== -->
-<main id="list" class="px-3 pt-3 space-y-4" style="padding-bottom:calc(120px + env(safe-area-inset-bottom))"></main>
+<!-- ========== 行程列表（路線軸） ========== -->
+<main id="list" class="gutter"></main>
 
 <!-- ========== Bottom Nav ========== -->
-<nav class="fixed bottom-0 left-0 right-0 z-50 safe-bottom" style="background:rgba(13,18,24,.97);border-top:1px solid #1f2a37;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)">
+<nav id="nav">
   <div class="grid grid-cols-5">
     <button data-act="top" class="press navb"><span class="ic">📋</span>行程</button>
     <button data-act="openImport" class="press navb"><span class="ic">📥</span>匯入</button>
     <button data-act="add" class="press navb main"><span class="ic">＋</span>新增</button>
-    <button data-act="openAna" class="press navb"><span class="ic">💰</span>支出</button>
+    <button data-act="openAna" class="press navb"><span class="ic">💴</span>支出</button>
     <button data-act="openSet" class="press navb"><span class="ic">⚙️</span>設定</button>
   </div>
 </nav>
@@ -309,23 +393,24 @@
 <!-- ========== 匯入 Modal ========== -->
 <div id="m-import" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-import"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2>📥 貼上行程筆記</h2><button class="press xclose" data-act="close" data-m="m-import">✕</button></div>
-    <div class="px-4 pb-4">
-      <p class="text-sm text-slate-400" style="margin:10px 0">每個行程以「時間」開頭的一行起始，其後各行可寫交通、停留、注意、備註。站名可用「中文 / 日文」或「中文 / Romaji」。也可直接貼上「匯出備份」的 JSON。</p>
-      <textarea id="imp-text" class="inp" rows="10" style="min-height:220px;line-height:1.5" placeholder="08:15 熊本站 / 熊本駅&#10;🚋 辛島町 → 熊本駅前（熊本市電 A系統）車程 15 分&#10;停留 35 分&#10;注意：後門上車前門下車&#10;備註：買便當"></textarea>
+  <div class="sheet">
+    <div class="sheet-h"><h2>📥 貼上行程筆記</h2><button class="press xclose" data-act="close" data-m="m-import" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
+      <p class="text-sm muted" style="margin:10px 0">用「第一天」「第二天」分天，每站以「時間」開頭的一行起始，其後可寫交通、經過、停留、注意、備註。也可以直接貼上「複製備份」的內容。</p>
+      <textarea id="imp-text" class="inp" rows="10" style="min-height:220px;line-height:1.5" placeholder="第一天 11/3&#10;08:15 熊本站 / 熊本駅&#10;🚋 辛島町 → 熊本駅前（熊本市電 A系統）15 分&#10;經過：慶徳校前→河原町→呉服町→祗園橋&#10;停留 35 分&#10;備註：買便當"></textarea>
       <div class="grid grid-cols-2 gap-2 mt-3">
         <button class="press btn btn-sec" data-act="impSample">📄 填入範例</button>
         <button class="press btn btn-pri" data-act="parse">🔍 解析預覽</button>
       </div>
-      <details class="mt-3 text-sm text-slate-400">
-        <summary class="font-bold text-slate-300" style="padding:8px 0">支援的關鍵字</summary>
+      <details class="mt-3 text-sm muted">
+        <summary class="font-bold muted2" style="padding:8px 0">支援的寫法</summary>
         <div style="line-height:1.8">
+          ・分天：<b>第一天</b>、<b>第2天 11/3</b>、<b>Day 3</b><br>
           ・時間：<b>08:30</b> 或 <b>08:30-10:00</b>（範圍自動算停留）<br>
           ・停留：<b>停留 45 分</b>、<b>自由活動 1.5 小時</b><br>
           ・交通：<b>🚌 A站 → B站（路線）40 分</b>，或「上車：」「下車：」「搭乘：」「車程：」<br>
-          ・注意 / ⚠️：下車注意事項　・備註 / 📝：一般筆記<br>
-          ・日文：、拼音：可補站名；常見九州地名會自動補日文
+          ・經過的站：<b>經過：A→B→C</b>（也可用、分隔，站名可寫「中文 / 日文」）<br>
+          ・注意 / ⚠️：下車注意事項　・備註 / 📝：一般筆記
         </div>
       </details>
       <div id="imp-preview" class="mt-3"></div>
@@ -336,38 +421,40 @@
 <!-- ========== 新增 / 編輯 Modal ========== -->
 <div id="m-edit" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-edit"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2 id="edit-title">新增行程</h2><button class="press xclose" data-act="close" data-m="m-edit">✕</button></div>
-    <div class="px-4 pb-6">
+  <div class="sheet">
+    <div class="sheet-h"><h2 id="edit-title">新增行程</h2><button class="press xclose" data-act="close" data-m="m-edit" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
       <input type="hidden" id="f-id">
-      <div class="sec-title" style="margin-top:12px">📍 地點</div>
-      <label class="fl">名稱（中文）</label><input id="f-name" class="inp" placeholder="例：草千里">
+      <div class="sec-title">📍 地點</div>
+      <label class="fl" for="f-name">名稱（中文）</label><input id="f-name" class="inp" placeholder="例：草千里">
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">日文</label><input id="f-nameJa" class="inp" placeholder="草千里"></div>
-        <div><label class="fl">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
+        <div><label class="fl" for="f-nameJa">日文</label><input id="f-nameJa" class="inp" placeholder="草千里"></div>
+        <div><label class="fl" for="f-romaji">拼音 Romaji</label><input id="f-romaji" class="inp" placeholder="Kusasenri"></div>
       </div>
       <div class="sec-title">⏱ 時間預算</div>
-      <label class="fl">哪一天</label><select id="f-day" class="inp"></select>
+      <label class="fl" for="f-day">哪一天</label><select id="f-day" class="inp"></select>
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
-        <div><label class="fl">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
+        <div><label class="fl" for="f-arrive">預定抵達</label><input id="f-arrive" type="time" class="inp"></div>
+        <div><label class="fl" for="f-stay">停留（分鐘）</label><input id="f-stay" type="number" inputmode="numeric" min="0" class="inp"></div>
       </div>
       <div id="f-chain-wrap" class="mt-3 flex items-center gap-2" style="font-weight:700">
-        <input id="f-chain" type="checkbox" checked style="width:22px;height:22px">
-        <label for="f-chain">時間變動時，後續行程連動順延</label>
+        <input id="f-chain" type="checkbox" checked style="width:22px;height:22px;accent-color:var(--ai)">
+        <label for="f-chain">時間變動時，同一天後面的行程跟著順延</label>
       </div>
-      <div class="sec-title">🚃 前往此地的交通（可留空）</div>
+      <div class="sec-title">🚃 前往這裡的交通（可留空）</div>
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">上車站（中）</label><input id="f-tFrom" class="inp"></div>
-        <div><label class="fl">上車站（日）</label><input id="f-tFromJa" class="inp"></div>
-        <div><label class="fl">路線/車種（中）</label><input id="f-tLine" class="inp"></div>
-        <div><label class="fl">路線/車種（日）</label><input id="f-tLineJa" class="inp"></div>
-        <div><label class="fl">下車站（中）</label><input id="f-tTo" class="inp"></div>
-        <div><label class="fl">下車站（日）</label><input id="f-tToJa" class="inp"></div>
+        <div><label class="fl" for="f-tFrom">上車站（中）</label><input id="f-tFrom" class="inp"></div>
+        <div><label class="fl" for="f-tFromJa">上車站（日）</label><input id="f-tFromJa" class="inp"></div>
+        <div><label class="fl" for="f-tLine">路線/車種（中）</label><input id="f-tLine" class="inp"></div>
+        <div><label class="fl" for="f-tLineJa">路線/車種（日）</label><input id="f-tLineJa" class="inp"></div>
+        <div><label class="fl" for="f-tTo">下車站（中）</label><input id="f-tTo" class="inp"></div>
+        <div><label class="fl" for="f-tToJa">下車站（日）</label><input id="f-tToJa" class="inp"></div>
       </div>
-      <label class="fl">車程（分鐘）</label><input id="f-tMins" type="number" inputmode="numeric" min="0" class="inp">
-      <label class="fl">下車注意事項</label><textarea id="f-tNote" class="inp" rows="2"></textarea>
-      <label class="fl">備註</label><textarea id="f-note" class="inp" rows="3"></textarea>
+      <label class="fl" for="f-tMins">車程（分鐘）</label><input id="f-tMins" type="number" inputmode="numeric" min="0" class="inp">
+      <label class="fl" for="f-via">途中經過的站（一行一站，可寫「中文 / 日文」，不含上下車站）</label>
+      <textarea id="f-via" class="inp" rows="4" placeholder="慶徳校前&#10;河原町&#10;呉服町&#10;祗園橋"></textarea>
+      <label class="fl" for="f-tNote">下車注意事項</label><textarea id="f-tNote" class="inp" rows="2"></textarea>
+      <label class="fl" for="f-note">備註</label><textarea id="f-note" class="inp" rows="3"></textarea>
       <div class="grid grid-cols-3 gap-2 mt-5">
         <button id="f-del" class="press btn btn-dan" data-act="delNode">刪除</button>
         <button class="press btn btn-pri col-span-2" data-act="saveNode">💾 儲存</button>
@@ -378,43 +465,52 @@
 
 <!-- ========== 支出分析 Modal（全螢幕） ========== -->
 <div id="m-ana" class="modal hidden">
-  <div class="sheet full safe-top safe-bottom">
-    <div class="sheet-h"><h2 id="ana-title">💰 當日支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana">✕</button></div>
-    <div id="ana-body" class="px-4 pb-10"></div>
+  <div class="sheet full">
+    <div class="sheet-h"><h2 id="ana-title">💴 支出分析</h2><button class="press xclose" data-act="close" data-m="m-ana" aria-label="關閉">✕</button></div>
+    <div id="ana-body" class="sheet-body pb-10"></div>
   </div>
 </div>
 
 <!-- ========== 設定 Modal ========== -->
 <div id="m-set" class="modal hidden">
   <div class="bd" data-act="close" data-m="m-set"></div>
-  <div class="sheet safe-bottom">
-    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set">✕</button></div>
-    <div class="px-4 pb-8">
-      <label class="fl">行程標題</label><input id="s-title" class="inp">
-      <label class="fl">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
+  <div class="sheet">
+    <div class="sheet-h"><h2>⚙️ 設定</h2><button class="press xclose" data-act="close" data-m="m-set" aria-label="關閉">✕</button></div>
+    <div class="sheet-body pb-8">
+      <label class="fl" for="s-title">行程標題</label><input id="s-title" class="inp">
+      <label class="fl" for="s-date">出發日期（第一天）— 依手機日期自動跳到當天</label><input id="s-date" type="date" class="inp">
       <div class="grid grid-cols-2 gap-2">
-        <div><label class="fl">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
-        <div><label class="fl">當日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
+        <div><label class="fl" for="s-rate">匯率 1 JPY = ? TWD</label><input id="s-rate" type="number" step="0.001" inputmode="decimal" class="inp"></div>
+        <div><label class="fl" for="s-budget">每日預算（JPY）</label><input id="s-budget" type="number" step="500" inputmode="numeric" class="inp"></div>
       </div>
-      <label class="fl">±分鐘按鈕的順延方式</label>
+      <label class="fl" for="s-mode">±分鐘按鈕的順延方式</label>
       <select id="s-mode" class="inp">
         <option value="all">本站抵達起，本站與後續全部平移</option>
         <option value="stay">延長／縮短本站停留，後續平移</option>
       </select>
 
+      <div class="sec-title">📦 離線封存</div>
+      <div class="panel text-sm muted2" style="line-height:1.7">
+        有網路時按上方的「<b>📦 封存</b>」，會把整個 App、字體和目前的行程存進手機。之後進山區斷網也能打開，倒數照手機時間自動進行，記帳和順延照常可用。
+        <div id="s-arch" class="text-xs" style="margin-top:6px;color:var(--ai);font-weight:800"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 mt-2">
+        <button id="s-arch-btn" class="press btn btn-pri" data-act="archive">📦 立即封存</button>
+        <button class="press btn btn-sec" data-act="restoreArch">↩️ 還原到封存時</button>
+      </div>
+
       <div class="sec-title">📲 安裝成 App</div>
-      <button id="s-install" class="press btn btn-amb w-full hidden" data-act="install" style="width:100%">⬇️ 安裝到主畫面</button>
-      <div class="text-sm text-slate-300" style="line-height:1.7;background:#0b0f14;border:1px solid #263241;border-radius:12px;padding:10px 12px;margin-top:8px">
+      <button id="s-install" class="press btn btn-amb w-full hidden" data-act="install">⬇️ 安裝到主畫面</button>
+      <div class="panel text-sm muted2 mt-2" style="line-height:1.7">
         <b>iPhone：</b>用 Safari 開啟 → 分享 ⬆️ →「加入主畫面」。<br>
-        <b>Android：</b>用 Chrome 開啟 → 右上 ⋮ →「安裝應用程式／加到主畫面」。<br>
-        出發前請<b>在有網路時至少開啟一次</b>，樣式與資料會存入手機，之後斷網也能使用。
-        <div id="s-sw" class="text-xs text-slate-500" style="margin-top:6px"></div>
+        <b>Android：</b>用 Chrome 開啟 → 右上 ⋮ →「安裝應用程式／加到主畫面」。
+        <div id="s-sw" class="text-xs muted" style="margin-top:6px"></div>
       </div>
 
       <div class="sec-title">💾 資料備份</div>
       <div class="grid grid-cols-2 gap-2">
-        <button class="press btn btn-sec" data-act="export">⬇️ 匯出 JSON</button>
         <button class="press btn btn-sec" data-act="copyBackup">📋 複製備份</button>
+        <button class="press btn btn-sec" data-act="export">⬇️ 匯出 JSON</button>
         <button class="press btn btn-sec" data-act="importFile">📂 讀取備份檔</button>
         <button class="press btn btn-sec" data-act="dlSW">⚙️ 下載 sw.js</button>
       </div>
@@ -425,26 +521,26 @@
         <button class="press btn btn-sec" data-act="resetDemo">載入示範資料</button>
         <button class="press btn btn-dan" data-act="clearAll">清空全部</button>
       </div>
-      <p class="text-xs text-slate-500" style="margin-top:12px;line-height:1.6">示範資料中的班次、車程與金額僅供格式參考，實際請以 JR 九州、產交巴士等業者當日公告為準。所有資料只存在本機瀏覽器的 localStorage，不會上傳。</p>
+      <p class="text-xs muted" style="margin-top:12px;line-height:1.6">示範資料的停靠站已查過業者資料，但班次、車程與金額僅供參考，出發前請以 JR 九州、熊本市電、產交巴士當日公告為準。所有資料只存在這支手機，不會上傳。</p>
     </div>
   </div>
 </div>
 
 <!-- ========== 離線指路大卡 ========== -->
 <div id="dir" class="dir hidden">
-  <div class="dir-top safe-top">
+  <div class="dir-top">
     <button class="press" data-act="dirTheme" id="dir-theme">☀️ 強光模式</button>
     <button class="press" data-act="dirClose">✕ 關閉</button>
   </div>
   <div id="dir-body" class="dir-body"></div>
-  <div id="dir-tabs" class="dir-tabs safe-bottom"></div>
+  <div id="dir-tabs" class="dir-tabs"></div>
 </div>
 
-<!-- ========== 確認對話框（取代瀏覽器 confirm） ========== -->
+<!-- ========== 確認對話框 ========== -->
 <div id="m-ask" class="modal hidden" style="z-index:75;justify-content:center;padding:0 16px">
   <div class="bd" data-act="askNo"></div>
-  <div class="sheet" style="border-radius:20px;border:1px solid #263241;padding:20px 16px 16px">
-    <div id="ask-msg" style="font-size:18px;font-weight:800;color:#fff;line-height:1.5;white-space:pre-wrap"></div>
+  <div class="sheet" style="border-radius:16px;border:2px solid var(--ink);padding:20px 16px 16px;box-shadow:4px 4px 0 var(--ink)">
+    <div id="ask-msg" style="font-size:18px;font-weight:800;color:var(--ink);line-height:1.5;white-space:pre-wrap"></div>
     <div class="grid grid-cols-2 gap-2" style="margin-top:18px">
       <button class="press btn btn-sec" data-act="askNo">取消</button>
       <button id="ask-ok" class="press btn btn-amb" data-act="askOk">確定</button>
@@ -454,18 +550,15 @@
 
 <div id="toast" class="hidden"></div>
 
-<!-- Tailwind 條件式 class 預先曝光，確保被產生並快取（離線用） -->
-<div class="hidden text-amber-300 text-emerald-300 text-rose-300 text-sky-300 text-cyan-300 bg-emerald-950 bg-rose-950 bg-slate-800 border-emerald-700 border-rose-700 border-slate-700 col-span-2 grid-cols-3 grid-cols-2 w-full"></div>
-
 <!-- ========== Service Worker 原始碼（放到與 HTML 同目錄命名為 sw.js 即啟用） ========== -->
 <script type="text/plain" id="sw-src">
-// 行程守護 Service Worker v2
+// 行程守護 Service Worker v3
 // 網頁本身：有網路時抓最新版（並更新快取），離線時用快取
-// 其他資源（Tailwind CDN 等）：快取優先、背景更新
-const CACHE = 'trip-guard-v2';
+// 字體等其他資源：快取優先、背景更新
+const CACHE = 'trip-guard-v3';
 self.addEventListener('install', e => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', 'https://cdn.tailwindcss.com']).catch(() => {})));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(() => {})));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -486,8 +579,10 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(req, { ignoreSearch: true }).then(hit => {
       const net = fetch(req).then(res => {
-        const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        if (res && (res.ok || res.type === 'opaque')) {
+          const copy = res.clone();
+          caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        }
         return res;
       }).catch(() => hit);
       return hit || net;
@@ -502,14 +597,13 @@ self.addEventListener('fetch', e => {
 
 /* ---------- 常數與工具 ---------- */
 const LS_KEY = 'tg_state_v1';
-const TW_KEY = 'tg_tw_css';
 const CATS = [
-  { k: 'food',      n: '餐飲', i: '🍜', c: '#f59e0b' },
-  { k: 'transport', n: '交通', i: '🚌', c: '#22d3ee' },
-  { k: 'ticket',    n: '門票', i: '🎫', c: '#a78bfa' },
-  { k: 'shopping',  n: '購物', i: '🛍️', c: '#f472b6' },
-  { k: 'lodging',   n: '住宿', i: '🏨', c: '#34d399' },
-  { k: 'misc',      n: '雜支', i: '📦', c: '#94a3b8' }
+  { k: 'food',      n: '餐飲', i: '🍜', c: '#c96f1e' },  // 柿
+  { k: 'transport', n: '交通', i: '🚌', c: '#2f4f7a' },  // 藍
+  { k: 'ticket',    n: '門票', i: '🎫', c: '#7a5c9a' },  // 藤
+  { k: 'shopping',  n: '購物', i: '🛍️', c: '#c0566f' },  // 紅梅
+  { k: 'lodging',   n: '住宿', i: '🏨', c: '#4f8a5e' },  // 若竹
+  { k: 'misc',      n: '雜支', i: '📦', c: '#857a6b' }   // 鼠
 ];
 const CAT = Object.fromEntries(CATS.map(c => [c.k, c]));
 
@@ -595,8 +689,9 @@ function normNode(o) {
   const n = Object.assign({
     id: uid(), day: 1, name: '', nameJa: '', romaji: '', arrive: 540, stay: 30,
     tFrom: '', tFromJa: '', tLine: '', tLineJa: '', tTo: '', tToJa: '', tMins: 0, tNote: '',
-    note: '', expenses: []
+    note: '', via: [], expenses: []
   }, o || {});
+  n.via = (Array.isArray(n.via) ? n.via : []).map(v => typeof v === 'string' ? { zh: v, ja: v } : { zh: String(v.zh || v.ja || ''), ja: String(v.ja || v.zh || '') }).filter(v => v.zh);
   n.day = Math.max(1, Math.min(99, Math.round(Number(n.day) || 1)));
   n.arrive = Math.max(0, Math.round(Number(n.arrive) || 0));
   n.stay = Math.max(0, Math.round(Number(n.stay) || 0));
@@ -622,69 +717,147 @@ function normState(o) {
   return s;
 }
 
+// 途經站：「A、B、C」→ [{zh, ja}]（日本站名中日文相同時只存一份）
+const VIA = s => s.split('、').map(x => x.trim()).filter(Boolean).map(x => ({ zh: x, ja: x }));
+const T = s => toMin(s);
+const TRAM_EAST = '花畑町、熊本城・市役所前、通町筋、水道町、九品寺交差点、交通局前、味噌天神前、新水前寺駅前、国府';
+const KAGO_N = '上熊本、崇城大学前、西里、植木、田原坂、木葉、肥後伊倉、玉名、大野下、長洲、南荒尾';
+const LIMO_IN = '臨空テクノパーク西・東、グランメッセ前、益城インター口、東町中央、自衛隊前、熊本県庁前、水前寺公園前、味噌天神、通町筋';
+const rev = s => s.split('、').reverse().join('、');
+const HOTEL = { name: 'Dormy Inn 熊本天然溫泉', nameJa: 'ドーミーイン熊本', romaji: 'Dōmī In Kumamoto' };
+const WALK = (mins, from, fromJa, to, toJa, note) => ({ tFrom: from, tFromJa: fromJa || from, tLine: '步行', tLineJa: '徒歩', tTo: to, tToJa: toJa || to, tMins: mins, tNote: note || '' });
+const TRIP_VERSION = 'kumamoto-5d-2026-11';
+
 function demoState() {
-  const e = (item, cat, amt) => ({ id: uid(), item, cat, amt, ts: Date.now() });
   return normState({
-    trip: { title: '熊本・阿蘇 二日遊', date: todayStr(), days: 2 },
+    trip: { title: '熊本 5 天 4 夜・親子遊', date: '2026-11-13', days: 5, version: TRIP_VERSION },
     settings: { rate: 0.215, budget: 20000, shiftMode: 'all' },
     nodes: [
-      { name: '辛島町（飯店出發）', nameJa: '辛島町', romaji: 'Karashimachō', arrive: 470, stay: 10,
-        note: '退房、寄放行李。確認 IC 卡餘額，山區巴士多半只收現金或 IC 卡。',
-        expenses: [e('便利商店早餐', 'food', 580)] },
-      { name: '熊本站', nameJa: '熊本駅', romaji: 'Kumamoto-eki', arrive: 495, stay: 35,
-        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 A系統（往熊本站前）', tLineJa: '熊本市電 A系統（熊本駅前 行き）',
-        tTo: '熊本站前', tToJa: '熊本駅前', tMins: 15,
-        tNote: '後門上車、前門下車付款；下車後步行約 5 分鐘到 JR 熊本站。',
-        note: '買鐵路便當、到綠色窗口確認指定席。',
-        expenses: [e('市電車資', 'transport', 180), e('鐵路便當', 'food', 1350)] },
-      { name: '阿蘇站', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: 610, stay: 20,
-        tFrom: '熊本站', tFromJa: '熊本駅', tLine: 'JR 特急 阿蘇男孩號', tLineJa: 'JR 特急 あそぼーい！',
-        tTo: '阿蘇站', tToJa: '阿蘇駅', tMins: 80,
-        tNote: '全車指定席需事先劃位；行駛日與時刻以 JR 九州公告為準。',
-        note: '站前觀光案內所可詢問當日火口開放狀況。',
-        expenses: [e('特急指定席', 'transport', 2850)] },
-      { name: '阿蘇火山口（阿蘇山上）', nameJa: '阿蘇山上ターミナル', romaji: 'Asosanjō Tāminaru', arrive: 670, stay: 60,
-        tFrom: '阿蘇站前', tFromJa: '阿蘇駅前', tLine: '產交巴士 阿蘇火山線', tLineJa: '産交バス 阿蘇火山線',
-        tTo: '阿蘇山上巴士總站', tToJa: '阿蘇山上ターミナル', tMins: 35,
-        tNote: '山上收訊差！先截圖回程班次。火口是否開放依當日火山氣體濃度決定。',
-        note: '山上風大溫度低，記得帶外套。',
-        expenses: [e('火山線巴士', 'transport', 1200), e('火口接駁', 'ticket', 600)] },
-      { name: '草千里', nameJa: '草千里', romaji: 'Kusasenri', arrive: 740, stay: 90,
-        tFrom: '阿蘇山上巴士總站', tFromJa: '阿蘇山上ターミナル', tLine: '產交巴士 阿蘇火山線（下山）', tLineJa: '産交バス 阿蘇火山線（下り）',
-        tTo: '草千里', tToJa: '草千里', tMins: 10,
-        tNote: '在「草千里」站下車，對面就是展望台與餐廳。',
-        note: '午餐赤牛丼，可體驗騎馬（約 10 分鐘）。',
-        expenses: [e('赤牛丼', 'food', 2200), e('騎馬體驗', 'ticket', 2000)] },
-      { name: '阿蘇站（回程）', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: 860, stay: 30,
-        tFrom: '草千里', tFromJa: '草千里', tLine: '產交巴士 阿蘇火山線（往阿蘇站）', tLineJa: '産交バス 阿蘇火山線（阿蘇駅 行き）',
-        tTo: '阿蘇站前', tToJa: '阿蘇駅前', tMins: 25,
-        tNote: '下山末班車很早，務必提前確認！錯過只能叫計程車。',
-        note: '道の駅阿蘇買伴手禮。',
-        expenses: [e('阿蘇牛奶布丁', 'shopping', 1500)] },
-      { name: '辛島町・熊本櫻町巴士總站', nameJa: '熊本桜町バスターミナル', romaji: 'Kumamoto Sakuramachi Basu Tāminaru', arrive: 1000, stay: 60,
-        tFrom: '阿蘇站前', tFromJa: '阿蘇駅前', tLine: '九州橫斷巴士（往熊本）', tLineJa: '九州横断バス（熊本 行き）',
-        tTo: '熊本櫻町巴士總站', tToJa: '熊本桜町バスターミナル', tMins: 110,
-        tNote: '上車抽整理券，下車時依號碼付款；「辛島町」或終點「熊本櫻町」下車皆可。',
-        note: 'SAKURA MACHI 逛街，回飯店領行李。',
-        expenses: [e('橫斷巴士', 'transport', 2000)] },
-      // ===== 第二天 =====
-      { day: 2, name: '熊本城', nameJa: '熊本城', romaji: 'Kumamoto-jō', arrive: 570, stay: 90,
-        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
-        tTo: '熊本城・市役所前', tToJa: '熊本城・市役所前', tMins: 5,
-        tNote: '在「熊本城・市役所前」下車，沿坡道步行約 10 分鐘到天守閣入口。',
-        note: '天守閣內有展示，城內步道多，穿好走的鞋。',
-        expenses: [] },
-      { day: 2, name: '櫻之馬場 城彩苑', nameJa: '桜の馬場 城彩苑', romaji: 'Sakuranobaba Jōsaien', arrive: 670, stay: 75,
-        tFrom: '熊本城', tFromJa: '熊本城', tLine: '步行', tLineJa: '徒歩', tTo: '櫻之馬場 城彩苑', tToJa: '桜の馬場 城彩苑', tMins: 10,
-        note: '午餐、買熊本熊周邊與伴手禮。', expenses: [] },
-      { day: 2, name: '水前寺成趣園', nameJa: '水前寺成趣園', romaji: 'Suizenji Jōjuen', arrive: 780, stay: 60,
-        tFrom: '熊本城・市役所前', tFromJa: '熊本城・市役所前', tLine: '熊本市電（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
-        tTo: '水前寺公園', tToJa: '水前寺公園', tMins: 20,
-        tNote: '在「水前寺公園」下車，步行約 3 分鐘。', note: '日式迴遊庭園，可在古今傳授之間喝抹茶。', expenses: [] },
-      { day: 2, name: '熊本機場', nameJa: '阿蘇くまもと空港', romaji: 'Aso Kumamoto Kūkō', arrive: 930, stay: 90,
-        tFrom: '熊本櫻町巴士總站', tFromJa: '熊本桜町バスターミナル', tLine: '機場利木津巴士', tLineJa: '空港リムジンバス',
-        tTo: '阿蘇熊本機場', tToJa: '阿蘇くまもと空港', tMins: 50,
-        tNote: '國際線航廈下車，班機前 2 小時抵達。', note: '退稅、託運行李。', expenses: [] }
+      // ===== 第一天 11/13（五）抵達熊本・辛島町進駐 =====
+      { day: 1, name: '阿蘇熊本機場', nameJa: '阿蘇くまもと空港', romaji: 'Aso Kumamoto Kūkō', arrive: T('11:50'), stay: 70,
+        note: '入境手續、領取行李。\n13:00 到 1 號乘車處搭利木津巴士。' },
+      { day: 1, name: '櫻町巴士總站（SAKURA MACHI）', nameJa: '熊本桜町バスターミナル', romaji: 'Kumamoto Sakuramachi Bus Terminal', arrive: T('13:50'), stay: 5,
+        tFrom: '阿蘇熊本機場', tFromJa: '阿蘇くまもと空港', tLine: '機場利木津巴士', tLineJa: '空港リムジンバス（産交バス）',
+        tTo: '櫻町巴士總站', tToJa: '熊本桜町バスターミナル', tMins: 50, via: VIA(LIMO_IN),
+        tNote: '「空港特快」班次會跳過部分站。聽到「熊本桜町バスターミナル」就下車。' },
+      { day: 1, ...HOTEL, arrive: T('14:00'), stay: 60, ...WALK(5, '櫻町巴士總站', '熊本桜町バスターミナル', 'Dormy Inn 熊本', 'ドーミーイン熊本', '步行約 3～5 分鐘。'),
+        note: '辦理入住或寄放行李，稍作休息。' },
+      { day: 1, name: '辛島町・下通商店街', nameJa: '下通商店街', romaji: 'Shimotōri', arrive: T('15:30'), stay: 150,
+        note: '周邊散步、熟悉環境。' },
+      { day: 1, name: '晚餐：熊本拉麵', nameJa: '熊本ラーメン 黒亭／桂花', romaji: 'Kokutei / Keika', arrive: T('18:00'), stay: 90,
+        note: '黑亭或桂花，或改吃在地鄉土料理。' },
+      { day: 1, name: '下通藥妝・回飯店泡湯', nameJa: 'ドーミーイン熊本', romaji: '', arrive: T('19:30'), stay: 120,
+        note: '逛下通藥妝，或回飯店泡天然溫泉、吃晚間免費拉麵。' },
+
+      // ===== 第二天 11/14（六）熊本經典文化與親子漫遊 =====
+      { day: 2, name: '飯店早餐・出發', nameJa: 'ドーミーイン熊本', arrive: T('08:30'), stay: 30, note: '吃完早餐，步行或搭市電去熊本城。' },
+      { day: 2, name: '熊本城 天守閣', nameJa: '熊本城', romaji: 'Kumamoto-jō', arrive: T('09:15'), stay: 135,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 A/B 系統（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '熊本城・市役所前', tToJa: '熊本城・市役所前', tMins: 5, via: VIA('花畑町'),
+        tNote: '下車後沿坡道步行約 10～15 分鐘到天守閣。也可以從飯店直接走過去。',
+        note: '天守閣展示歷史與修復過程，有電梯動線。' },
+      { day: 2, name: '櫻之馬場 城彩苑', nameJa: '桜の馬場 城彩苑', romaji: 'Sakuranobaba Jōsaien', arrive: T('11:30'), stay: 120,
+        ...WALK(10, '熊本城', '熊本城', '櫻之馬場 城彩苑', '桜の馬場 城彩苑'),
+        note: '吃馬肉可樂餅、海膽可樂餅。\n帶孩子到「湧湧座（わくわく座）」體驗變裝。' },
+      { day: 2, name: '水前寺成趣園', nameJa: '水前寺成趣園', romaji: 'Suizenji Jōjuen', arrive: T('14:05'), stay: 85,
+        tFrom: '熊本城・市役所前', tFromJa: '熊本城・市役所前', tLine: '熊本市電 A/B 系統（往健軍町）', tLineJa: '熊本市電（健軍町 行き）',
+        tTo: '水前寺公園', tToJa: '水前寺公園', tMins: 20, via: VIA('通町筋、水道町、九品寺交差点、交通局前、味噌天神前、新水前寺駅前、国府'),
+        tNote: '13:45 從城彩苑走到「熊本城・市役所前」電車站。下車後步行約 3 分鐘到庭園入口。',
+        note: '縮小版富士山造景，池畔餵鯉魚。' },
+      { day: 2, name: '櫻町商場 SAKURA MACHI', nameJa: 'SAKURA MACHI Kumamoto', romaji: 'Sakura Machi', arrive: T('16:00'), stay: 120,
+        tFrom: '水前寺公園', tFromJa: '水前寺公園', tLine: '熊本市電（往田崎橋／上熊本）', tLineJa: '熊本市電（田崎橋・上熊本 行き）',
+        tTo: '辛島町', tToJa: '辛島町', tMins: 22, via: VIA(rev(TRAM_EAST)),
+        tNote: '辛島町下車，步行約 3 分鐘到 SAKURA MACHI。',
+        note: '頂樓空中花園、和超大熊本熊公仔合照。' },
+      { day: 2, name: '晚餐：櫻町商場或下通', nameJa: '', arrive: T('18:30'), stay: 90, note: '' },
+
+      // ===== 第三天 11/15（日）三井格林蘭 =====
+      { day: 3, name: '熊本站', nameJa: '熊本駅', romaji: 'Kumamoto-eki', arrive: T('08:40'), stay: 10,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 A 系統（往田崎橋）', tLineJa: '熊本市電 A系統（田崎橋 行き）',
+        tTo: '熊本駅前', tToJa: '熊本駅前', tMins: 20, via: VIA('慶徳校前、河原町、呉服町、祗園橋'),
+        tNote: '要搭 A 系統（往田崎橋），B 系統不會到熊本站。',
+        note: '在售票機順道領取隔天「阿蘇男孩」實體車票。' },
+      { day: 3, name: '荒尾站', nameJa: '荒尾駅', romaji: 'Arao-eki', arrive: T('09:35'), stay: 5,
+        tFrom: '熊本站', tFromJa: '熊本駅', tLine: 'JR 鹿兒島本線（往大牟田・鳥栖方向）', tLineJa: 'JR鹿児島本線（大牟田・鳥栖 方面）',
+        tTo: '荒尾站', tToJa: '荒尾駅', tMins: 45, via: VIA(KAGO_N),
+        tNote: '這是普通車每站停的站名；若搭快速列車，停靠站會比較少。在「荒尾」下車，下一站就是福岡縣的大牟田。' },
+      { day: 3, name: '三井格林蘭樂園', nameJa: 'グリーンランド', romaji: 'Greenland', arrive: T('09:50'), stay: 400,
+        tFrom: '荒尾站', tFromJa: '荒尾駅', tLine: '計程車', tLineJa: 'タクシー', tTo: '三井格林蘭', tToJa: 'グリーンランド', tMins: 10,
+        tNote: '站前搭計程車約 8～10 分鐘。',
+        note: '10:00 開園。兒童跳跳塔、雙鬼屋、摩天輪、雲霄飛車，園區內吃午餐。\n16:30 請服務中心代叫計程車（或用叫車 App）。' },
+      { day: 3, name: '荒尾站（回程）', nameJa: '荒尾駅', romaji: 'Arao-eki', arrive: T('16:45'), stay: 15,
+        tFrom: '三井格林蘭', tFromJa: 'グリーンランド', tLine: '計程車', tLineJa: 'タクシー', tTo: '荒尾站', tToJa: '荒尾駅', tMins: 12 },
+      { day: 3, name: '熊本站・晚餐', nameJa: '熊本駅 肥後よかもん市場', romaji: 'Higo Yokamon Ichiba', arrive: T('17:45'), stay: 105,
+        tFrom: '荒尾站', tFromJa: '荒尾駅', tLine: 'JR 鹿兒島本線（往熊本・八代方向）', tLineJa: 'JR鹿児島本線（熊本・八代 方面）',
+        tTo: '熊本站', tToJa: '熊本駅', tMins: 45, via: VIA(rev(KAGO_N)),
+        tNote: '月台要選「熊本方面」那一側。',
+        note: '熊本站「肥後よかもん市場」或辛島町周邊吃晚餐，之後回飯店泡湯。' },
+
+      // ===== 第四天 11/16（一）阿蘇火山（先攻頂後草原） =====
+      { day: 4, name: '熊本站 3 號月台', nameJa: '熊本駅 3番のりば', romaji: 'Kumamoto-eki', arrive: T('09:15'), stay: 42,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 A 系統（往田崎橋）', tLineJa: '熊本市電 A系統（田崎橋 行き）',
+        tTo: '熊本駅前', tToJa: '熊本駅前', tMins: 15, via: VIA('慶徳校前、河原町、呉服町、祗園橋'),
+        note: '到 3 號月台候車，09:57 發車。' },
+      { day: 4, name: '阿蘇站', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: T('11:22'), stay: 28,
+        tFrom: '熊本站', tFromJa: '熊本駅', tLine: 'JR 特急 阿蘇男孩！1 號', tLineJa: '特急 あそぼーい！1号',
+        tTo: '阿蘇站', tToJa: '阿蘇駅', tMins: 85, via: VIA('新水前寺、肥後大津、立野'),
+        tNote: '第 3 車廂有球池、繪本區和小狗 Kuro 打卡點。全車指定席。',
+        note: '先帶小孩上洗手間，到站外 2 號站牌排隊候車。' },
+      { day: 4, name: '阿蘇山上總站', nameJa: '阿蘇山上ターミナル', romaji: 'Asosanjō Terminal', arrive: T('12:25'), stay: 5,
+        tFrom: '阿蘇駅前', tFromJa: '阿蘇駅前', tLine: '產交巴士 阿蘇火口線', tLineJa: '産交バス 阿蘇火口線（阿蘇山上ターミナル 行き）',
+        tTo: '阿蘇山上總站', tToJa: '阿蘇山上ターミナル', tMins: 35, via: VIA('野営場前、草千里阿蘇火山博物館前'),
+        tNote: '途經草千里先不要下車，坐到終點「阿蘇山上ターミナル」。中間站只列出業者路線名上的主要停靠站。',
+        note: '在總站室內上洗手間，轉搭火口接駁車。' },
+      { day: 4, name: '阿蘇中岳火口', nameJa: '阿蘇中岳火口', romaji: 'Nakadake Kakō', arrive: T('12:35'), stay: 30,
+        tFrom: '阿蘇山上總站', tFromJa: '阿蘇山上ターミナル', tLine: '火口接駁車', tLineJa: '火口シャトルバス', tTo: '火口', tToJa: '中岳火口', tMins: 5,
+        tNote: '火口是否開放依當天火山氣體濃度決定，到總站先看公告。',
+        note: '火山口展望區拍照、看火口湖冒煙，停留約 20～30 分鐘。' },
+      { day: 4, name: '阿蘇山上總站（回程）', nameJa: '阿蘇山上ターミナル', romaji: 'Asosanjō Terminal', arrive: T('13:10'), stay: 15,
+        tFrom: '火口', tFromJa: '中岳火口', tLine: '火口接駁車', tLineJa: '火口シャトルバス', tTo: '阿蘇山上總站', tToJa: '阿蘇山上ターミナル', tMins: 5,
+        note: '13:25 搭火口線巴士下山，只坐 1 站。' },
+      { day: 4, name: '草千里之濱', nameJa: '草千里ヶ浜', romaji: 'Kusasenri-ga-hama', arrive: T('13:30'), stay: 135,
+        tFrom: '阿蘇山上總站', tFromJa: '阿蘇山上ターミナル', tLine: '產交巴士 阿蘇火口線（下山）', tLineJa: '産交バス 阿蘇火口線（阿蘇駅 行き）',
+        tTo: '草千里阿蘇火山博物館前', tToJa: '草千里阿蘇火山博物館前', tMins: 5,
+        tNote: '只坐 1 站，聽到「草千里阿蘇火山博物館前」就下車。',
+        note: '草千里觀光中心吃阿蘇赤牛丼。\n走進大草原看放牧牛馬、拍阿蘇五岳。\n15:20 前上好洗手間，到站牌等車。' },
+      { day: 4, name: '阿蘇站（下山）', nameJa: '阿蘇駅', romaji: 'Aso-eki', arrive: T('16:15'), stay: 70,
+        tFrom: '草千里阿蘇火山博物館前', tFromJa: '草千里阿蘇火山博物館前', tLine: '產交巴士 阿蘇火口線（往阿蘇站）', tLineJa: '産交バス（阿蘇駅前 行き）',
+        tTo: '阿蘇駅前', tToJa: '阿蘇駅前', tMins: 30, via: VIA('野営場前'),
+        tNote: '15:45 發車。下山班次少，錯過只能叫計程車。',
+        note: '和航海王「騙人布」銅像合照，逛物產館買阿蘇牛奶、冰淇淋。' },
+      { day: 4, name: '熊本站（回程）', nameJa: '熊本駅', romaji: 'Kumamoto-eki', arrive: T('18:48'), stay: 12,
+        tFrom: '阿蘇站', tFromJa: '阿蘇駅', tLine: 'JR 九州橫斷特急 6 號', tLineJa: '特急 九州横断特急6号',
+        tTo: '熊本站', tToJa: '熊本駅', tMins: 83, via: VIA('立野、肥後大津、新水前寺') },
+      { day: 4, ...HOTEL, name: 'Dormy Inn・晚餐', arrive: T('19:15'), stay: 60,
+        tFrom: '熊本駅前', tFromJa: '熊本駅前', tLine: '熊本市電 A 系統（往健軍町）', tLineJa: '熊本市電 A系統（健軍町 行き）',
+        tTo: '辛島町', tToJa: '辛島町', tMins: 15, via: VIA('祗園橋、呉服町、河原町、慶徳校前'),
+        note: '回飯店後外出吃晚餐。' },
+
+      // ===== 第五天 11/17（二）市電老街雙點探險・採買返台 =====
+      { day: 5, ...HOTEL, name: '退房・寄放行李', arrive: T('09:00'), stay: 15, note: '大件行李寄放飯店櫃檯，輕裝出發。' },
+      { day: 5, name: '新町老街', nameJa: '新町', romaji: 'Shinmachi', arrive: T('09:19'), stay: 41,
+        tFrom: '辛島町', tFromJa: '辛島町', tLine: '熊本市電 B 系統（往上熊本）', tLineJa: '熊本市電 B系統（上熊本 行き）',
+        tTo: '新町', tToJa: '新町', tMins: 4, via: VIA('西辛島町、洗馬橋'),
+        tNote: '辛島町到新町是 3 站（西辛島町、洗馬橋、新町），不是 2 站。一定要搭 B 系統。',
+        note: '白壁土藏老街散步，拍路面電車穿過老街，買百年老店菓子。' },
+      { day: 5, name: '藤崎八旛宮', nameJa: '藤崎八旛宮', romaji: 'Fujisaki Hachimangū', arrive: T('10:20'), stay: 60,
+        tFrom: '新町', tFromJa: '新町', tLine: '熊本市電 B 系統（往健軍町）', tLineJa: '熊本市電 B系統（健軍町 行き）',
+        tTo: '通町筋', tToJa: '通町筋', tMins: 20, via: VIA('洗馬橋、西辛島町、辛島町、花畑町、熊本城・市役所前'),
+        tNote: '電車約 10 分鐘。通町筋下車後往北步行約 8～10 分鐘，穿過林蔭參道。',
+        note: '朱紅大樓門與千年古樹，求健康平安御守。' },
+      { day: 5, name: '上通商店街・午餐', nameJa: '上通商店街', romaji: 'Kamitōri', arrive: T('11:20'), stay: 70,
+        ...WALK(10, '藤崎八旛宮', '藤崎八旛宮', '上通商店街', '上通商店街', '出神社往南直通上通北端。'),
+        note: '沿拱頂商店街逛到通町筋，附近吃午餐。' },
+      { day: 5, name: '鶴屋百貨・熊本熊廣場', nameJa: '鶴屋百貨店 くまモンスクエア', romaji: 'Kumamon Square', arrive: T('12:30'), stay: 120,
+        note: '東館熊本熊廣場、部長辦公室，買官方限定紀念品。' },
+      { day: 5, name: '下通・唐吉訶德採買', nameJa: '下通 ドン・キホーテ', romaji: 'Don Quijote', arrive: T('14:30'), stay: 140,
+        note: '一路往南逛回辛島町，藥妝與伴手禮最後採買。' },
+      { day: 5, ...HOTEL, name: 'Dormy Inn 領行李', arrive: T('17:00'), stay: 10, note: '17:00 準時回飯店領取寄放的大行李。' },
+      { day: 5, name: '阿蘇熊本機場（返台）', nameJa: '阿蘇くまもと空港', romaji: 'Aso Kumamoto Kūkō', arrive: T('18:05'), stay: 105,
+        tFrom: '櫻町巴士總站', tFromJa: '熊本桜町バスターミナル', tLine: '機場利木津巴士', tLineJa: '空港リムジンバス（阿蘇くまもと空港 行き）',
+        tTo: '阿蘇熊本機場', tToJa: '阿蘇くまもと空港', tMins: 50, via: VIA(rev(LIMO_IN)),
+        tNote: '17:15 從飯店步行 3～5 分鐘到櫻町巴士總站搭車。',
+        note: '報到託運、通關，搭機平安返台。' }
     ]
   });
 }
@@ -692,7 +865,12 @@ function demoState() {
 function load() {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) { S = normState(JSON.parse(raw)); return false; }
+    if (raw) {
+      S = normState(JSON.parse(raw));
+      // 手機裡如果還是舊的熊本・阿蘇示範行程，自動換成這次的 5 天行程
+      if (['熊本・阿蘇火山一日遊', '熊本・阿蘇 二日遊'].includes(S.trip.title)) { S = demoState(); save(); return 'replaced'; }
+      return false;
+    }
   } catch (e) {}
   S = demoState();
   save();
@@ -703,21 +881,70 @@ function save() {
   catch (e) { toast('⚠️ 無法寫入手機儲存空間（可能是私密瀏覽模式）'); }
 }
 
-/* ---------- Tailwind CSS 離線快取 ---------- */
-let twTimer = null;
-function cacheTW() {
-  if (window.__TW_OFFLINE) return;
-  clearTimeout(twTimer);
-  twTimer = setTimeout(() => {
-    try {
-      let css = '';
-      document.querySelectorAll('style').forEach(s => {
-        if (s.id === 'app-css' || s.id === 'tw-cache') return;
-        css += s.textContent + '\n';
-      });
-      if (css.length > 2000) localStorage.setItem(TW_KEY, css);
-    } catch (e) {}
-  }, 1500);
+/* ---------- 📦 離線封存 ---------- */
+// 版面已全部內嵌，不再需要快取外部 CSS 框架
+function cacheTW() {}
+const CACHE_NAME = 'trip-guard-v3';
+const ARCH_KEY = 'tg_archive_v1';
+function getArch() { try { return JSON.parse(localStorage.getItem(ARCH_KEY) || 'null'); } catch (e) { return null; } }
+function archTime(a) {
+  const d = new Date(a.at);
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function renderArchState() {
+  const a = getArch(), el = $('#net');
+  const on = navigator.onLine;
+  $('#arch-btn').classList.toggle('hidden', !on);
+  $('#arch-btn').textContent = a ? '📦 再封存' : '📦 封存';
+  const st = a ? (on ? '已封存 ' + archTime(a).split(' ')[0] : '封存版') : '未封存';
+  el.innerHTML = `<span class="dot ${on ? 'on' : 'off'}"></span>${on ? '連線' : '離線'} · ${st}`;
+  el.classList.toggle('stale', !a);
+  const s = $('#s-arch'); if (s) s.textContent = a ? `上次封存：${archTime(a)}（${a.full ? '整個 App 已可離線開啟' : '行程已存，App 檔案需在主畫面版本封存'}）` : '還沒有封存過。';
+  const sb = $('#s-arch-btn'); if (sb) sb.disabled = !on, sb.style.opacity = on ? 1 : .45;
+  setHdrVar();
+}
+async function archiveNow() {
+  if (!navigator.onLine) { toast('📴 目前離線，連上網路才能封存'); return; }
+  const btn = $('#arch-btn'); btn.textContent = '⏳ 封存中…'; btn.disabled = true;
+  let full = false;
+  try {
+    save();
+    // 1) 讓字體把行程裡會用到的字都下載好
+    const text = S.trip.title + S.nodes.map(n => [n.name, n.nameJa, n.tFrom, n.tFromJa, n.tTo, n.tToJa, n.tLine, n.tLineJa, n.note, n.tNote,
+      (n.via || []).map(v => v.zh + v.ja).join('')].join('')).join('') + '0123456789:¥第一二三四五六七八九十天';
+    if (document.fonts && document.fonts.load) {
+      await Promise.race([Promise.all([
+        document.fonts.load('600 22px "Klee One"', text),
+        document.fonts.load('700 20px "Zen Maru Gothic"', text),
+        document.fonts.load('500 16px "Zen Maru Gothic"', text)
+      ]), new Promise(r => setTimeout(r, 8000))]).catch(() => {});
+    }
+    // 2) 註冊離線程式並把網頁、字體存進快取
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      try { await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+    }
+    if ('caches' in window && /^https?:$/.test(location.protocol)) {
+      const c = await caches.open(CACHE_NAME);
+      const page = await fetch(new Request('./', { cache: 'reload' }));
+      if (page.ok) { await c.put('./', page.clone()); full = true; }
+      try { const sw = await fetch(new Request('./sw.js', { cache: 'reload' })); if (sw.ok) await c.put('./sw.js', sw); } catch (e) {}
+      const fontCss = $('#font-css').href;
+      try { await c.put(fontCss, await fetch(fontCss, { mode: 'no-cors' })); } catch (e) {}
+      const fontFiles = performance.getEntriesByType('resource').map(r => r.name).filter(u => /fonts\.gstatic\.com/.test(u));
+      await Promise.all([...new Set(fontFiles)].map(u => fetch(u, { mode: 'cors' }).then(r => r.ok && c.put(u, r)).catch(() => {})));
+    }
+  } catch (e) { full = false; }
+  const a = { at: Date.now(), full, state: S };
+  try { localStorage.setItem(ARCH_KEY, JSON.stringify(a)); } catch (e) {}
+  btn.disabled = false;
+  renderArchState();
+  toast(full ? '📦 已封存！斷網也能打開，倒數會照手機時間進行' : '📦 行程已封存在手機（請在主畫面 App 再按一次，讓整個 App 也能離線開啟）');
+}
+async function restoreArch() {
+  const a = getArch();
+  if (!a || !a.state) { toast('還沒有封存過'); return; }
+  if (!(await ask(`還原到 ${archTime(a)} 封存時的行程？\n之後新增的記帳和修改會被取代。`, '還原'))) return;
+  S = normState(a.state); save(); closeAllModals(); setDay(autoDay()); toast('↩️ 已還原到封存時的行程');
 }
 
 /* ---------- 計算 ---------- */
@@ -780,7 +1007,7 @@ const vehIcon = s => /步行|徒步|走路|歩/.test(s) ? '🚶' : /計程|タ�
 function renderHeader() {
   $('#trip-title').textContent = S.trip.title || '我的自由行';
   const n = dayCount();
-  $('#trip-date').textContent = `第${zhNum(curDay)}天 / 共 ${n} 天 · ${dayLabelDate(curDay, true)}` +
+  $('#trip-date').textContent = `第${zhNum(curDay)}天/${n}天 · ${dayLabelDate(curDay)}` +
     (isToday() ? ' · 今天' : '') + ` · ${dayNodes(curDay).length} 站`;
   $('#hdr-total').textContent = yen(daySum(curDay));
   renderDays();
@@ -815,7 +1042,7 @@ function setDay(d, keepScroll) {
   const now = nowMin(), ns = dayNodes(curDay);
   $('#slider').value = Math.min(1320, Math.max(360, isToday() ? now : (ns[0] ? ns[0].arrive : 480)));
   onSlider(false);
-  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  document.querySelectorAll('.stop.is-focus').forEach(c => c.classList.remove('is-focus'));
   focusId = null;
   if (!keepScroll) window.scrollTo({ top: 0 });
 }
@@ -823,7 +1050,8 @@ function setHdrVar() {
   document.documentElement.style.setProperty('--hdr', $('#hdr').offsetHeight + 'px');
 }
 
-/* ---------- Render：列表 ---------- */
+/* ---------- Render：列表（路線軸） ---------- */
+const openVia = new Set();
 function renderList() {
   const list = $('#list');
   if (curDay > dayCount()) curDay = dayCount();
@@ -831,132 +1059,142 @@ function renderList() {
   if (S.nodes.length && !ns.length) {
     const canDel = curDay === dayCount() && curDay > 1;
     list.innerHTML = `
-      <div style="text-align:center;padding:50px 20px;color:#94a3b8">
-        <div style="font-size:52px">🗓️</div>
-        <div class="text-xl font-extrabold text-white" style="margin:10px 0">第${zhNum(curDay)}天還沒有行程</div>
+      <div class="empty">
+        <div style="font-size:48px">🗓️</div>
+        <h3>第${zhNum(curDay)}天還是空白的一頁</h3>
         <p style="margin:0 0 20px">${dayLabelDate(curDay, true)}　手動新增，或貼上含「第${zhNum(curDay)}天」的筆記。</p>
         <div class="grid grid-cols-2 gap-2">
           <button class="press btn btn-sec" data-act="openImport">📥 貼上筆記</button>
           <button class="press btn btn-pri" data-act="add">＋ 新增行程</button>
         </div>
-        ${canDel ? `<button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="delDay">移除第${zhNum(curDay)}天</button>` : ''}
+        ${canDel ? `<button class="press btn btn-sec w-full mt-2" data-act="delDay">移除第${zhNum(curDay)}天</button>` : ''}
       </div>`;
   } else if (!S.nodes.length) {
     list.innerHTML = `
-      <div style="text-align:center;padding:60px 20px;color:#94a3b8">
-        <div style="font-size:56px">🗺️</div>
-        <div class="text-xl font-extrabold text-white" style="margin:10px 0">還沒有行程</div>
+      <div class="empty">
+        <div style="font-size:48px">📓</div>
+        <h3>手帳還是空白的</h3>
         <p style="margin:0 0 20px">貼上你的自由行筆記，或手動新增第一站。</p>
         <div class="grid grid-cols-2 gap-2">
           <button class="press btn btn-sec" data-act="openImport">📥 貼上筆記</button>
           <button class="press btn btn-pri" data-act="add">＋ 新增行程</button>
         </div>
-        <button class="press btn btn-sec w-full" style="width:100%;margin-top:8px" data-act="resetDemo">載入示範（熊本・阿蘇）</button>
+        <button class="press btn btn-sec w-full mt-2" data-act="resetDemo">載入熊本 5 天行程</button>
       </div>`;
   } else {
-    list.innerHTML = ns.map((n, i) => cardHTML(n, i)).join('');
+    list.innerHTML = `<div class="route">${ns.map((n, i) => stopHTML(n, i)).join('')}</div>`;
   }
   renderTicks();
   updateLive();
   renderHeader();
-  cacheTW();
 }
 
 function rerenderCard(id) {
   const n = S.nodes.find(x => x.id === id); if (!n) return;
   const i = dayNodes(n.day).indexOf(n);
   const el = document.getElementById('node-' + id);
-  if (el) el.outerHTML = cardHTML(n, i);
-  updateLive(); renderHeader(); cacheTW();
+  if (el) el.outerHTML = stopHTML(n, i);
+  updateLive(); renderHeader();
 }
 
-function stnBtn(zh, ja, id, mode) {
-  if (!zh && !ja) return '<span class="text-slate-500">—</span>';
-  return `<button class="press stn" data-act="dir" data-id="${id}" data-mode="${mode}">
+function stnBtn(zh, ja, id, mode, off) {
+  if (!zh && !ja) return '<span class="muted">—</span>';
+  return `<button class="press stn${off ? ' off' : ''}" data-act="dir" data-id="${id}" data-mode="${mode}">
     <span>${esc(zh || ja)}</span>${ja && ja !== zh ? `<span class="ja">${esc(ja)}</span>` : ''}<span class="go">🪧</span></button>`;
 }
+function modeOf(n) {
+  const s = (n.tLine || '') + (n.tLineJa || '');
+  if (/步行|徒步|走路|徒歩/.test(s)) return 'walk';
+  if (/市電|路面|tram/i.test(s)) return 'tram';
+  if (/巴士|バス|公車|接駁|シャトル|bus/i.test(s)) return 'bus';
+  if (/JR|電車|列車|新幹線|特急|鐵|鉄|線/.test(s)) return 'train';
+  return 'other';
+}
+const MODE_ICON = { walk: '🚶', tram: '🚋', bus: '🚌', train: '🚆', other: '🚕' };
 
 function legHTML(n) {
-  const has = n.tLine || n.tFrom || n.tTo || n.tMins || n.tNote;
+  const has = n.tLine || n.tFrom || n.tTo || n.tMins || n.tNote || n.via.length;
   if (!has) return '';
+  const m = modeOf(n);
   const line = n.tLine || n.tLineJa;
+  const board = n.tMins ? fmt(n.arrive - n.tMins) : '';
+  const via = n.via || [];
+  const stops = via.length + 1;
+  const open = openVia.has(n.id) || via.length <= 2;
+  const toZh = n.tTo || n.name, toJa = n.tToJa || n.nameJa;
   return `
-  <div class="leg">
-    <div class="flex items-center justify-between gap-2">
-      <span class="font-extrabold text-sky-300" style="font-size:15px">${vehIcon(line + n.tLineJa)} 交通前往</span>
-      ${n.tMins ? `<span class="live live-move" style="padding:4px 10px">🕒 車程 ${durTxt(n.tMins)}</span>` : ''}
+  <div class="leg m-${m}">
+    ${n.tFrom ? `<div class="lrow"><span class="pin"></span><span class="t">${board}</span><span class="lab on">上車</span>${stnBtn(n.tFrom, n.tFromJa, n.id, 2)}</div>` : ''}
+    <div class="lmid">
+      ${line ? `<div><span class="linebadge">${MODE_ICON[m]} ${esc(n.tLine || n.tLineJa)}</span></div>
+        ${n.tLineJa && n.tLineJa !== n.tLine ? `<div class="lineja">${esc(n.tLineJa)}</div>` : ''}` : ''}
+      <div class="lmeta">
+        ${m !== 'walk' && via.length ? `<span>搭 <b class="num">${stops}</b> 站</span>` : ''}
+        ${n.tMins ? `<span>🕒 ${durTxt(n.tMins)}</span>` : ''}
+        ${via.length > 2 ? `<button class="press viatog" data-act="via" data-id="${n.id}">${open ? '▾ 收起' : '▸'} 途經 ${via.length} 站</button>` : ''}
+      </div>
+      ${via.length && open ? `<ol class="via">${via.map(v => `<li><span class="vn">${esc(v.zh)}</span>${v.ja && v.ja !== v.zh ? `<span class="vj">${esc(v.ja)}</span>` : ''}</li>`).join('')}
+        <li class="last-hint">🔔 下一站「${esc(toJa || toZh)}」準備下車</li></ol>` : ''}
     </div>
-    <div class="leg-grid">
-      <span class="lbl">上車</span><div>${stnBtn(n.tFrom, n.tFromJa, n.id, 2)}</div>
-      ${line ? `<span class="lbl" style="background:#fde68a">路線</span>
-        <div style="font-weight:800;font-size:16px;color:#fff">${esc(n.tLine || n.tLineJa)}${n.tLineJa && n.tLineJa !== n.tLine ? `<div style="font-size:14px;color:#67e8f9;font-weight:700">${esc(n.tLineJa)}</div>` : ''}</div>` : ''}
-      <span class="lbl off">下車</span><div>${stnBtn(n.tTo || n.name, n.tToJa || n.nameJa, n.id, 0)}</div>
-    </div>
+    <div class="lrow"><span class="pin"></span><span class="t">${fmt(n.arrive)}</span><span class="lab off">🔔 下車</span>${stnBtn(toZh, toJa, n.id, 0, true)}</div>
     ${n.tNote ? `<div class="warn">⚠️ ${esc(n.tNote)}</div>` : ''}
   </div>`;
 }
 
-function cardHTML(n, i) {
+function stopHTML(n, i) {
   const dep = n.arrive + n.stay;
   const sum = nodeSum(n);
   const open = openExp.has(n.id);
   const cat = expCat[n.id] || 'food';
   return `
-  <article id="node-${n.id}" data-id="${n.id}" class="node-card${focusId === n.id ? ' is-focus' : ''}">
+  <section id="node-${n.id}" data-id="${n.id}" class="stop${focusId === n.id ? ' is-focus' : ''}">
     ${legHTML(n)}
-    <div style="padding:14px">
-      <div class="flex items-start gap-3">
-        <div class="idx">${i + 1}</div>
-        <button class="press flex-1 min-w-0" style="text-align:left" data-act="dir" data-id="${n.id}" data-mode="node">
-          <div style="font-size:22px;font-weight:900;line-height:1.2;color:#fff;word-break:break-word">${esc(n.name || '（未命名）')}</div>
-          ${(n.nameJa || n.romaji) ? `<div style="font-size:16px;font-weight:800;color:#67e8f9;margin-top:2px">${esc(n.nameJa)}${n.romaji ? ` <span style="color:#94a3b8;font-weight:600;font-size:14px">/ ${esc(n.romaji)}</span>` : ''}</div>` : ''}
-          <div style="font-size:12px;color:#64748b;margin-top:2px">👆 點名稱出示日文指路卡</div>
-        </button>
-        <div class="shrink-0" style="text-align:right">
-          <span class="subt">${yen(sum)}<small>${twd(sum)}</small></span>
+    <article class="node-card">
+      <div class="idx">${i + 1}</div>
+      <div class="card-in">
+        <div class="flex items-start gap-2">
+          <button class="press flex-1 min-w-0" style="text-align:left" data-act="dir" data-id="${n.id}" data-mode="node">
+            <div class="pname">${esc(n.name || '（未命名）')}</div>
+            ${(n.nameJa || n.romaji) ? `<div class="pja">${esc(n.nameJa)}${n.romaji ? ` <small>/ ${esc(n.romaji)}</small>` : ''}</div>` : ''}
+            <div class="phint">👆 點名稱出示日文指路卡</div>
+          </button>
+          <span class="subt shrink-0">${yen(sum)}<small>${twd(sum)}</small></span>
         </div>
+        <div class="times">
+          <div class="tbox"><div class="k">抵達</div><div class="v">${fmt(n.arrive)}</div></div>
+          <div class="tbox stay"><div class="k">停留</div><div class="v">${n.stay}<span style="font-size:14px">分</span></div></div>
+          <div class="tbox dep"><div class="k">建議離開</div><div class="v">${fmt(dep)}</div></div>
+        </div>
+        <div data-live="${n.id}" style="margin-top:10px"></div>
+        <div class="shifts">
+          <button class="press sbtn minus" data-act="shift" data-id="${n.id}" data-d="-15">−15m</button>
+          <button class="press sbtn plus" data-act="shift" data-id="${n.id}" data-d="15">+15m</button>
+          <button class="press sbtn plus2" data-act="shift" data-id="${n.id}" data-d="30">+30m</button>
+          <button class="press sbtn" data-act="edit" data-id="${n.id}" aria-label="編輯">✏️</button>
+        </div>
+        ${n.note ? `<div class="note">${esc(n.note)}</div>` : ''}
       </div>
-
-      <div class="grid grid-cols-3 gap-2" style="margin-top:12px">
-        <div class="tbox"><div class="k">抵達</div><div class="v">${fmt(n.arrive)}</div></div>
-        <div class="tbox stay"><div class="k">停留</div><div class="v">${n.stay}<span style="font-size:14px">分</span></div></div>
-        <div class="tbox dep"><div class="k">建議離開</div><div class="v">${fmt(dep)}</div></div>
-      </div>
-
-      <div data-live="${n.id}" style="margin-top:10px;min-height:0"></div>
-
-      <div class="grid gap-2" style="grid-template-columns:1fr 1fr 1fr 0.8fr;margin-top:10px">
-        <button class="press sbtn minus" data-act="shift" data-id="${n.id}" data-d="-15">−15m</button>
-        <button class="press sbtn plus" data-act="shift" data-id="${n.id}" data-d="15">+15m</button>
-        <button class="press sbtn plus2" data-act="shift" data-id="${n.id}" data-d="30">+30m</button>
-        <button class="press sbtn edit" data-act="edit" data-id="${n.id}" aria-label="編輯">✏️</button>
-      </div>
-
-      ${n.note ? `<div class="note">📝 ${esc(n.note)}</div>` : ''}
-    </div>
-
-    <div style="border-top:1px solid #263241">
-      <button class="press w-full flex items-center justify-between" style="width:100%;padding:12px 14px" data-act="toggleExp" data-id="${n.id}">
-        <span style="font-weight:900;font-size:16px">💴 記帳 <span style="color:#94a3b8">(${n.expenses.length})</span></span>
-        <span style="font-weight:800;color:#fbbf24" class="tabnum">${yen(sum)} <span style="color:#94a3b8;font-weight:700">≈ ${twd(sum)}</span> ${open ? '▴' : '▾'}</span>
+      <button class="press exp-tog" data-act="toggleExp" data-id="${n.id}">
+        <span style="font-weight:900;font-size:16px">💴 記帳 <span class="muted">(${n.expenses.length})</span></span>
+        <span class="num" style="font-weight:700;color:var(--money)">${yen(sum)} <span class="muted" style="font-weight:500">≈ ${twd(sum)}</span> ${open ? '▴' : '▾'}</span>
       </button>
-      <div class="${open ? '' : 'hidden'}" style="padding:0 14px 14px">
+      <div class="${open ? '' : 'hidden'}" style="padding:0 12px 14px">
         ${n.expenses.length ? `<div style="margin-bottom:8px">${n.expenses.map(e => expRowHTML(e, n.id, false)).join('')}</div>`
-          : `<div style="color:#64748b;font-size:14px;padding:4px 0 10px">尚無花費紀錄</div>`}
+          : `<div class="muted" style="font-size:14px;padding:4px 0 10px">尚無花費紀錄</div>`}
         <div class="hide-sb" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px">
           ${CATS.map(c => `<button class="press chip${c.k === cat ? ' on' : ''}" style="--c:${c.c};flex-shrink:0" data-act="cat" data-id="${n.id}" data-cat="${c.k}">${c.i} ${c.n}</button>`).join('')}
         </div>
-        <input class="inp" data-exp-item placeholder="品項（可留空，預設為分類名）" maxlength="40">
+        <input class="inp" data-exp-item placeholder="品項（可留空，預設為分類名）" maxlength="40" aria-label="品項">
         <div class="flex gap-2" style="margin-top:8px">
           <div class="flex-1 min-w-0" style="position:relative">
-            <input class="inp tabnum" data-exp-amt data-id="${n.id}" type="text" inputmode="numeric" placeholder="金額 ¥" style="font-weight:900;padding-right:90px">
-            <span data-exp-twd style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-weight:800;font-size:14px;pointer-events:none">≈ NT$0</span>
+            <input class="inp num" data-exp-amt data-id="${n.id}" type="text" inputmode="numeric" placeholder="金額 ¥" aria-label="金額（日圓）" style="font-weight:700;padding-right:84px">
+            <span data-exp-twd class="muted" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-weight:800;font-size:14px;pointer-events:none">≈ NT$0</span>
           </div>
           <button class="press addbtn" data-act="addExp" data-id="${n.id}">＋ 記一筆</button>
         </div>
       </div>
-    </div>
-  </article>`;
+    </article>
+  </section>`;
 }
 
 function expRowHTML(e, nodeId, showNode) {
@@ -964,14 +1202,14 @@ function expRowHTML(e, nodeId, showNode) {
   const d = new Date(e.ts);
   const node = showNode ? S.nodes.find(n => n.id === nodeId) : null;
   return `<div class="exp-row">
-    <div class="catdot" style="background:${c.c}22;border:1px solid ${c.c}">${c.i}</div>
+    <div class="catdot" style="background:${c.c}1f;border:1.5px solid ${c.c}">${c.i}</div>
     <div class="flex-1 min-w-0">
-      <div style="font-weight:800;font-size:16px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.item)}</div>
-      <div style="font-size:13px;color:#94a3b8">${c.n} · ${pad(d.getHours())}:${pad(d.getMinutes())}${node ? ' · 📍' + (anaScope === 'all' ? `第${zhNum(node.day)}天 ` : '') + esc(node.name) : ''}</div>
+      <div class="truncate" style="font-weight:800;font-size:16px">${esc(e.item)}</div>
+      <div class="muted" style="font-size:13px">${c.n} · ${pad(d.getHours())}:${pad(d.getMinutes())}${node ? ' · 📍' + (anaScope === 'all' ? `第${zhNum(node.day)}天 ` : '') + esc(node.name) : ''}</div>
     </div>
-    <div style="text-align:right" class="tabnum">
-      <div style="font-weight:900;font-size:16px;color:#fbbf24">${yen(e.amt)}</div>
-      <div style="font-size:12px;color:#94a3b8">${twd(e.amt)}</div>
+    <div style="text-align:right" class="num">
+      <div style="font-weight:700;font-size:16px;color:var(--money)">${yen(e.amt)}</div>
+      <div class="muted" style="font-size:12px">${twd(e.amt)}</div>
     </div>
     <button class="press xbtn" data-act="${showNode ? 'delExpA' : 'delExp'}" data-id="${nodeId}" data-eid="${e.id}" aria-label="刪除">✕</button>
   </div>`;
@@ -997,7 +1235,7 @@ function updateLive() {
     let h = '';
     if (now >= dep) {
       if (next && now < next.arrive) {
-        h = `<span class="live live-move">🚌 移動中 → ${esc(next.name)}（${fmt(next.arrive)} 抵達）</span>`;
+        h = `<span class="live live-move">${MODE_ICON[modeOf(next)]} 移動中 → ${esc(next.name)}（${fmt(next.arrive)} 抵達）</span>`;
       } else {
         h = `<span class="live live-past">✓ 已過預定離開時間</span>`;
         card.classList.add('is-past');
@@ -1022,7 +1260,7 @@ function renderBanner(today, now) {
     const t = todayDayNum();
     const msg = (t != null && t > curDay) ? `第${zhNum(curDay)}天（${dayLabelDate(curDay)}）已經過去`
       : `倒數提示將於 ${dayLabelDate(curDay, true)} 當天啟動`;
-    b.innerHTML = `<div class="banner" style="background:#111821;border:1px solid #263241;color:#94a3b8;font-size:14px">📅 ${esc(msg)}</div>`;
+    b.innerHTML = `<div class="banner b-off">📅 ${esc(msg)}</div>`;
     setHdrVar(); return;
   }
   const cur = ns.find(n => now >= n.arrive && now < n.arrive + n.stay);
@@ -1031,21 +1269,21 @@ function renderBanner(today, now) {
   if (cur) {
     const left = cur.arrive + cur.stay - now;
     const urgent = left <= 10;
-    html = `<button class="press banner w-full" style="width:100%;text-align:left;background:${urgent ? '#7f1d1d' : '#064e3b'};color:${urgent ? '#fecaca' : '#a7f3d0'}" data-act="jump" data-id="${cur.id}">
+    html = `<button class="press banner ${urgent ? 'b-urgent' : 'b-now'}" data-act="jump" data-id="${cur.id}">
       <span style="font-size:22px">${urgent ? '🚨' : '📍'}</span>
       <span class="flex-1 min-w-0"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(cur.name)}</span>
       <span style="font-size:13px;opacity:.85">${fmt(cur.arrive + cur.stay)} 前離開</span></span>
       <span style="font-size:22px" class="tabnum">剩 ${left} 分</span></button>`;
   } else if (next) {
     const to = next.arrive - now;
-    html = `<button class="press banner w-full" style="width:100%;text-align:left;background:#0c4a6e;color:#bae6fd" data-act="jump" data-id="${next.id}">
+    html = `<button class="press banner b-next" data-act="jump" data-id="${next.id}">
       <span style="font-size:22px">➡️</span>
       <span class="flex-1 min-w-0"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">下一站：${esc(next.name)}</span>
       <span style="font-size:13px;opacity:.85">${fmt(next.arrive)} 抵達</span></span>
       <span style="font-size:20px" class="tabnum">${durTxt(to)}</span></button>`;
   } else {
     const nextDay = curDay < dayCount() ? `明天是第${zhNum(curDay + 1)}天，點上方分頁可先預覽。` : '整趟旅程到此結束！';
-    html = `<div class="banner" style="background:#1e1b4b;color:#c7d2fe">🎉 今日行程已全部完成，辛苦了！${nextDay}</div>`;
+    html = `<div class="banner b-done">🎉 今日行程已全部完成，辛苦了！${nextDay}</div>`;
   }
   b.innerHTML = html;
   setHdrVar();
@@ -1078,7 +1316,7 @@ function onSlider(scroll) {
 }
 function focusCard(id, scroll) {
   focusId = id;
-  document.querySelectorAll('.node-card.is-focus').forEach(c => c.classList.remove('is-focus'));
+  document.querySelectorAll('.stop.is-focus').forEach(c => c.classList.remove('is-focus'));
   const el = document.getElementById('node-' + id);
   if (!el) return;
   el.classList.add('is-focus');
@@ -1155,13 +1393,13 @@ function renderAnalysis() {
   const budget = isAll ? dayBudget * days : dayBudget;
   const pct = budget > 0 ? total / budget * 100 : 0;
   const over = total - budget;
-  const barColor = pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#22c55e';
+  const barColor = pct >= 100 ? 'var(--shu)' : pct >= 80 ? 'var(--yama)' : 'var(--matcha)';
   const byCat = CATS.map(c => ({ ...c, sum: scopeNodes.reduce((a, n) => a + n.expenses.filter(e => e.cat === c.k).reduce((s, e) => s + e.amt, 0), 0) }))
     .sort((a, b) => b.sum - a.sum);
   const all = [];
   scopeNodes.forEach(n => n.expenses.forEach(e => all.push({ e, n })));
   all.sort((a, b) => b.e.ts - a.e.ts);
-  $('#ana-title').textContent = isAll ? '💰 全旅程支出分析' : `💰 第${zhNum(curDay)}天支出分析`;
+  $('#ana-title').textContent = isAll ? '💴 全旅程支出' : `💴 第${zhNum(curDay)}天支出`;
 
   // 各景點小計（全旅程時依天分組）
   let nodeRows = '';
@@ -1171,10 +1409,10 @@ function renderAnalysis() {
     if (isAll) nodeRows += `<div class="dayhead flex justify-between"><span>第${zhNum(d)}天 · ${dayLabelDate(d)}</span><span class="tabnum">${yen(daySum(d))}</span></div>`;
     nodeRows += dn.map((n, i) => {
       const s = nodeSum(n);
-      return `<button class="press w-full flex items-center justify-between" style="width:100%;padding:10px 0;border-bottom:1px solid #1f2a37;text-align:left" data-act="jumpA" data-id="${n.id}">
+      return `<button class="press w-full flex items-center justify-between" style="padding:10px 0;border-bottom:1px dashed var(--line);text-align:left" data-act="jumpA" data-id="${n.id}">
         <span style="font-weight:800;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${esc(n.name)}</span>
-        <span class="tabnum" style="font-weight:900;color:${s ? '#fbbf24' : '#475569'};white-space:nowrap;margin-left:8px">${yen(s)}</span></button>`;
-    }).join('') || (isAll ? '<div style="color:#64748b;padding:6px 0">（沒有行程）</div>' : '');
+        <span class="num" style="font-weight:700;color:${s ? 'var(--money)' : 'var(--ink4)'};white-space:nowrap;margin-left:8px">${yen(s)}</span></button>`;
+    }).join('') || (isAll ? '<div class="muted" style="padding:6px 0">（沒有行程）</div>' : '');
   }
 
   $('#ana-body').innerHTML = `
@@ -1182,52 +1420,52 @@ function renderAnalysis() {
       <button class="press${isAll ? '' : ' on'}" data-act="anaScope" data-s="day">第${zhNum(curDay)}天</button>
       <button class="press${isAll ? ' on' : ''}" data-act="anaScope" data-s="all">全旅程（${days} 天）</button>
     </div>
-    <div style="margin-top:14px;background:linear-gradient(135deg,#164e63,#0b0f14);border:1px solid #155e75;border-radius:20px;padding:18px">
-      <div style="font-size:14px;font-weight:800;color:#a5f3fc">${isAll ? '全旅程總花費' : `第${zhNum(curDay)}天總花費 · ${dayLabelDate(curDay)}`}</div>
-      <div class="tabnum" style="font-size:44px;font-weight:900;color:#fff;line-height:1.1">${yen(total)}</div>
-      <div class="tabnum" style="font-size:22px;font-weight:800;color:#fbbf24">≈ ${twd(total)}</div>
-      <div style="font-size:13px;color:#94a3b8;margin-top:4px">${all.length} 筆 · 匯率 1 JPY = ${S.settings.rate} TWD</div>
+    <div class="total-card">
+      <div class="hand" style="font-size:16px;color:var(--ink2)">${isAll ? '全旅程總花費' : `第${zhNum(curDay)}天總花費 · ${dayLabelDate(curDay)}`}</div>
+      <div class="big">${yen(total)}</div>
+      <div class="twd">≈ ${twd(total)}</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">${all.length} 筆 · 匯率 1 JPY = ${S.settings.rate} TWD</div>
     </div>
 
     <div class="sec-title">🎯 預算進度</div>
-    <div style="background:#0b0f14;border:1px solid #263241;border-radius:16px;padding:14px">
+    <div class="panel">
       <div class="flex items-center gap-2">
-        <span style="font-weight:800;color:#94a3b8;white-space:nowrap">每日預算 ¥</span>
-        <input id="a-budget" class="inp tabnum" type="number" inputmode="numeric" step="500" value="${dayBudget}" style="font-weight:900">
+        <label for="a-budget" class="muted" style="font-weight:800;white-space:nowrap">每日預算 ¥</label>
+        <input id="a-budget" class="inp num" type="number" inputmode="numeric" step="500" value="${dayBudget}" style="font-weight:900">
       </div>
-      ${isAll ? `<div style="font-size:13px;color:#94a3b8;margin-top:6px">全旅程預算 = 每日 ${yen(dayBudget)} × ${days} 天 = ${yen(budget)}</div>` : ''}
+      ${isAll ? `<div class="muted" style="font-size:13px;margin-top:6px">全旅程預算 = 每日 ${yen(dayBudget)} × ${days} 天 = ${yen(budget)}</div>` : ''}
       <div class="bar" style="margin-top:12px;height:18px"><div style="width:${Math.min(100, pct)}%;background:${barColor}"></div></div>
-      <div class="flex justify-between tabnum" style="margin-top:8px;font-weight:900">
+      <div class="flex justify-between num" style="margin-top:8px;font-weight:700">
         <span style="color:${barColor};font-size:20px">${budget > 0 ? pct.toFixed(1) + '%' : '未設定'}</span>
-        <span style="color:#cbd5e1">${budget > 0 ? (over > 0 ? '' : '剩餘 ' + yen(-over)) : ''}</span>
+        <span class="muted2">${budget > 0 ? (over > 0 ? '' : '剩餘 ' + yen(-over)) : ''}</span>
       </div>
-      ${budget > 0 && over > 0 ? `<div class="warn" style="background:#450a0a;border-color:#b91c1c;color:#fecaca;font-weight:900">🚨 已超支 ${yen(over)}（≈ ${twd(over)}）</div>`
+      ${budget > 0 && over > 0 ? `<div class="warn" style="background:var(--shu-pale);border-color:var(--shu);color:var(--shu);font-weight:900">🚨 已超支 ${yen(over)}（≈ ${twd(over)}）</div>`
         : budget > 0 && pct >= 80 ? `<div class="warn">⚠️ 已使用 ${pct.toFixed(0)}%，接近預算上限</div>` : ''}
     </div>
 
     <div class="sec-title">📊 類別佔比</div>
     ${total > 0 ? `
-    <div style="display:flex;height:22px;border-radius:99px;overflow:hidden;background:#1f2937">
+    <div style="display:flex;height:22px;border-radius:99px;overflow:hidden;background:var(--paper2);border:1.5px solid var(--ink)">
       ${byCat.filter(c => c.sum > 0).map(c => `<div style="width:${c.sum / total * 100}%;background:${c.c}"></div>`).join('')}
     </div>
     <div style="margin-top:12px">
       ${byCat.map(c => {
         const p = total > 0 ? c.sum / total * 100 : 0;
         return `<div style="padding:8px 0">
-          <div class="flex items-center justify-between tabnum">
+          <div class="flex items-center justify-between">
             <span style="font-weight:900;font-size:16px">${c.i} ${c.n}</span>
-            <span style="font-weight:900;color:${c.sum ? '#fff' : '#475569'}">${yen(c.sum)} <span style="color:${c.c};margin-left:6px">${p.toFixed(1)}%</span></span>
+            <span class="num" style="font-weight:700;color:${c.sum ? 'var(--ink)' : 'var(--ink4)'}">${yen(c.sum)} <span style="color:${c.c};margin-left:6px">${p.toFixed(1)}%</span></span>
           </div>
           <div class="bar" style="margin-top:6px;height:10px"><div style="width:${p}%;background:${c.c}"></div></div>
         </div>`;
       }).join('')}
-    </div>` : `<div style="color:#64748b">尚無花費資料</div>`}
+    </div>` : `<div class="muted">尚無花費資料</div>`}
 
     <div class="sec-title">📍 各景點小計</div>
-    <div>${nodeRows || '<div style="color:#64748b">這一天沒有行程</div>'}</div>
+    <div>${nodeRows || '<div class="muted">這一天沒有行程</div>'}</div>
 
     <div class="sec-title">🧾 流水帳（新 → 舊）</div>
-    <div>${all.length ? all.map(x => expRowHTML(x.e, x.n.id, true)).join('') : '<div style="color:#64748b">尚無紀錄，請在景點卡片下方「記帳」新增。</div>'}</div>
+    <div>${all.length ? all.map(x => expRowHTML(x.e, x.n.id, true)).join('') : '<div class="muted">尚無紀錄，請在景點卡片下方「記帳」新增。</div>'}</div>
   `;
   const bi = $('#a-budget');
   bi.addEventListener('change', () => {
@@ -1259,6 +1497,7 @@ function openEdit(id) {
   $('#f-arrive').value = fmtPlain(d.arrive);
   $('#f-stay').value = d.stay;
   $('#f-tMins').value = d.tMins || '';
+  $('#f-via').value = (d.via || []).map(v => v.ja && v.ja !== v.zh ? `${v.zh} / ${v.ja}` : v.zh).join('\n');
   $('#f-del').classList.toggle('hidden', !n);
   $('#f-chain-wrap').classList.toggle('hidden', !n);
   $('#f-chain').checked = true;
@@ -1276,6 +1515,7 @@ function saveNode() {
   data.day = Math.max(1, parseInt($('#f-day').value, 10) || curDay);
   data.stay = Math.max(0, parseInt($('#f-stay').value, 10) || 0);
   data.tMins = Math.max(0, parseInt($('#f-tMins').value, 10) || 0);
+  data.via = parseVia($('#f-via').value);
   if (!data.nameJa) { const dj = dictLookup(name); if (dj) { data.nameJa = dj.ja; if (!data.romaji) data.romaji = dj.ro; } }
   if (data.tFrom && !data.tFromJa) data.tFromJa = autoJa(data.tFrom);
   if (data.tTo && !data.tToJa) data.tToJa = autoJa(data.tTo);
@@ -1321,6 +1561,7 @@ const SAMPLE = `第一天 11/3
 
 08:15 熊本站 / 熊本駅
 🚋 辛島町 → 熊本駅前（熊本市電 A系統）車程 15 分
+經過：慶徳校前→河原町→呉服町→祗園橋
 ⚠️ 後門上車、前門下車付款
 停留 35 分
 備註：買鐵路便當
@@ -1406,9 +1647,17 @@ function parseTransport(raw, n) {
     }
   }
 }
-const KEY_RE = /^[\s\p{Extended_Pictographic}\uFE0F]*(停留時間|停留|自由活動|上車站|上車|乘車站|出發站|起站|下車注意|下車站|下車|到站|迄站|搭乘|交通方式|交通|路線|車種|車程|乘車時間|注意事項|注意|提醒|備註|備注|筆記|說明|日文名稱|日文|日語|羅馬拼音|拼音|note|memo|stay|line|from|to)\s*[:：=]\s*(.+)$/iu;
+const KEY_RE = /^[\s\p{Extended_Pictographic}\uFE0F]*(停留時間|停留|自由活動|上車站|上車|乘車站|出發站|起站|下車注意|下車站|下車|到站|迄站|搭乘|交通方式|交通|路線|車種|車程|乘車時間|注意事項|注意|提醒|備註|備注|筆記|說明|日文名稱|日文|日語|羅馬拼音|拼音|經過站|經過|途經|途中經過|停靠站|停靠|経由|via|note|memo|stay|line|from|to)\s*[:：=]\s*(.+)$/iu;
 function isTransportPiece(p) {
   return /^[\s]*[🚌🚃🚆🚄🚇🚋🚶🚕🚍🚎🚗🚲⛴🚅🚈🚉]/u.test(p) || /(→|->|=>|⇒|➡|➜)/.test(p) || /^(搭乘|乘坐|轉乘|搭|坐)\s*[:：]?/.test(p.trim());
+}
+// 「A→B→C」「A、B、C」或一行一站 → [{zh, ja}]
+function parseVia(s) {
+  return String(s || '').split(/\s*(?:→|->|⇒|➡|>|＞|、|,|，|;|；|\n)\s*/).map(x => x.trim()).filter(Boolean).map(x => {
+    const r = splitName(x);
+    const zh = r.zh || r.ja, ja = r.ja || (hasKana(zh) ? zh : zh);
+    return { zh, ja };
+  });
 }
 function applyPiece(p, n) {
   p = p.trim(); if (!p) return;
@@ -1417,6 +1666,7 @@ function applyPiece(p, n) {
   const km = p.match(KEY_RE);
   if (km) {
     const k = km[1].toLowerCase(), v = km[2].trim();
+    if (/經過|途經|停靠|経由|via/.test(k)) { n.via = (n.via || []).concat(parseVia(v)); return; }
     if (/停留|自由活動|stay/.test(k)) { const sm = v.match(/(\d+(?:\.\d+)?)\s*(小時|hr|h|分鐘|分|min|m)?/i); if (sm) n._stay = parseDur(sm[1], sm[2]); return; }
     if (/上車|乘車站|出發站|起站|from/.test(k)) { const x = splitName(v); n.tFrom = x.zh; if (x.ja) n.tFromJa = x.ja; return; }
     if (/下車注意|注意|提醒/.test(k)) { n.tNote += (n.tNote ? '；' : '') + v; return; }
@@ -1542,16 +1792,17 @@ function doParse() {
       if (parseMeta.sawDay && n.day !== lastD) { lastD = n.day; seq = 0; head = `<div class="dayhead">🗓️ 第${zhNum(n.day)}天</div>`; }
       const i = seq++;
       return head + `
-      <div style="background:#0b0f14;border:1px solid #263241;border-radius:14px;padding:10px 12px;margin-bottom:8px">
+      <div class="panel" style="margin-bottom:8px;padding:10px 12px">
         <div class="flex items-center gap-2">
           <span class="idx" style="width:26px;height:26px;font-size:14px">${i + 1}</span>
-          <span class="tabnum" style="font-weight:900;color:#fbbf24">${fmt(n.arrive)}–${fmt(n.arrive + n.stay)}</span>
-          <span style="font-weight:900;color:#fff;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.name)}</span>
+          <span class="num" style="font-weight:700;color:var(--shu)">${fmt(n.arrive)}–${fmt(n.arrive + n.stay)}</span>
+          <span class="truncate" style="font-weight:900;min-width:0">${esc(n.name)}</span>
         </div>
-        <div style="font-size:14px;color:#67e8f9;margin-top:2px">${esc(n.nameJa)} ${n.romaji ? '/ ' + esc(n.romaji) : ''}</div>
-        ${(n.tLine || n.tFrom) ? `<div style="font-size:14px;color:#cbd5e1;margin-top:2px">${vehIcon(n.tLine)} ${esc(n.tFrom || '?')} → ${esc(n.tTo || '?')}${n.tLine ? '｜' + esc(n.tLine) : ''}${n.tMins ? '｜' + n.tMins + ' 分' : ''}</div>` : ''}
-        ${n.tNote ? `<div style="font-size:13px;color:#fde68a;margin-top:2px">⚠️ ${esc(n.tNote)}</div>` : ''}
-        ${n.note ? `<div style="font-size:13px;color:#94a3b8;margin-top:2px;white-space:pre-wrap">📝 ${esc(n.note)}</div>` : ''}
+        <div class="ja" style="font-size:14px;color:var(--ai);margin-top:2px">${esc(n.nameJa)} ${n.romaji ? '/ ' + esc(n.romaji) : ''}</div>
+        ${(n.tLine || n.tFrom) ? `<div class="muted2" style="font-size:14px;margin-top:2px">${MODE_ICON[modeOf(n)]} ${esc(n.tFrom || '?')} → ${esc(n.tTo || '?')}${n.tLine ? '｜' + esc(n.tLine) : ''}${n.tMins ? '｜' + n.tMins + ' 分' : ''}</div>` : ''}
+        ${n.via.length ? `<div class="muted" style="font-size:13px;margin-top:2px">途經 ${n.via.length} 站：${n.via.map(v => esc(v.zh)).join('、')}</div>` : ''}
+        ${n.tNote ? `<div style="font-size:13px;color:var(--warn-ink);margin-top:2px">⚠️ ${esc(n.tNote)}</div>` : ''}
+        ${n.note ? `<div class="muted" style="font-size:13px;margin-top:2px;white-space:pre-wrap">📝 ${esc(n.note)}</div>` : ''}
       </div>`;
     }).join('')}
     <div class="grid grid-cols-2 gap-2" style="margin-top:6px">
@@ -1669,6 +1920,7 @@ function fillSettings() {
   $('#s-mode').value = S.settings.shiftMode;
   $('#s-install').classList.toggle('hidden', !deferredPrompt);
   $('#s-sw').textContent = swStatus;
+  renderArchState();
 }
 function bindSettings() {
   $('#s-title').addEventListener('input', e => { S.trip.title = e.target.value; save(); renderHeader(); });
@@ -1691,19 +1943,19 @@ function bindSettings() {
 /* ---------- 網路狀態 ---------- */
 function setNet() {
   const on = navigator.onLine;
-  $('#net').innerHTML = `<span class="dot ${on ? 'on' : 'off'}"></span>${on ? '連線' : '離線'}`;
+  renderArchState();
 }
 
 /* ---------- PWA：Service Worker / 安裝提示 ---------- */
 let deferredPrompt = null;
-let swStatus = '離線機制：localStorage（資料 + 樣式快取）已啟用。';
+let swStatus = '行程資料隨時自動存在手機。';
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; const b = $('#s-install'); if (b) b.classList.remove('hidden'); });
 window.addEventListener('appinstalled', () => { deferredPrompt = null; toast('🎉 已安裝到主畫面'); });
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
   navigator.serviceWorker.register('./sw.js').then(() => {
-    swStatus = '離線機制：Service Worker 已啟用＋localStorage 快取。';
+    swStatus = '離線程式已啟用，封存後斷網也能打開整個 App。';
   }).catch(() => {
-    swStatus = '提示：若將「sw.js」與本檔放在同一網址目錄，可再啟用 Service Worker 整頁快取（非必要）。';
+    swStatus = '提示：把 sw.js 和 index.html 放在同一個網址資料夾，封存後整個 App 才能離線開啟。';
   });
 }
 
@@ -1806,9 +2058,12 @@ document.addEventListener('click', async e => {
     case 'importFile': $('#file-in').click(); break;
     case 'dlSW': download('sw.js', $('#sw-src').textContent.trim() + '\n', 'text/javascript'); break;
     case 'resetDemo':
-      if (S.nodes.length && !(await ask('載入示範資料會覆蓋目前行程與記帳，確定？', '載入示範'))) return;
-      S = demoState(); save(); closeAllModals(); setDay(autoDay()); toast('已載入示範資料');
+      if (S.nodes.length && !(await ask('重新載入熊本 5 天行程？\n目前的行程與記帳會被覆蓋。', '重新載入'))) return;
+      S = demoState(); save(); closeAllModals(); setDay(autoDay()); toast('已載入熊本 5 天行程');
       break;
+    case 'archive': archiveNow(); break;
+    case 'restoreArch': restoreArch(); break;
+    case 'via': openVia.has(id) ? openVia.delete(id) : openVia.add(id); rerenderCard(id); break;
     case 'clearAll':
       if (!(await ask('確定清空所有行程與記帳？\n此動作無法復原。', '全部清空', true))) return;
       S.nodes = []; S.trip.days = 1; save(); closeAllModals(); setDay(1); toast('已清空');
@@ -1845,8 +2100,8 @@ $('#slider').addEventListener('input', () => {
 });
 
 // 網路 / 視窗
-window.addEventListener('online', () => { setNet(); toast('🟢 已恢復連線'); });
-window.addEventListener('offline', () => { setNet(); toast('🔴 目前離線，資料仍會存在手機'); });
+window.addEventListener('online', () => { setNet(); toast('🟢 已恢復連線，可以按「📦 封存」更新離線版'); });
+window.addEventListener('offline', () => { setNet(); toast(getArch() ? '📴 目前離線，使用封存的行程，倒數照常進行' : '📴 目前離線，行程仍存在手機裡'); });
 window.addEventListener('resize', setHdrVar);
 // 從背景切回 App：若日期已變（例如隔天早上打開），自動跳到今天
 document.addEventListener('visibilitychange', () => {
@@ -1866,10 +2121,8 @@ document.addEventListener('gesturestart', e => e.preventDefault());
   setDay(autoDay());           // 依手機日期自動顯示當天行程
   setInterval(updateLive, 20000);
   setTimeout(setHdrVar, 300);
-  if (first) setTimeout(() => toast('👋 已載入「熊本・阿蘇」示範行程，可在 📥 匯入貼上你的筆記'), 600);
-  if (window.__TW_OFFLINE && !localStorage.getItem(TW_KEY)) {
-    setTimeout(() => toast('⚠️ 首次開啟需有網路，才能下載並快取版面樣式'), 1200);
-  }
+  if (first === 'replaced') setTimeout(() => toast('📓 已換成你的熊本 5 天行程（11/13～11/17）'), 600);
+  else if (first) setTimeout(() => toast('📓 已載入熊本 5 天行程，出發前記得按「📦 封存」'), 600);
 })();
 </script>
 </body>
